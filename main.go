@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -38,6 +39,7 @@ func main() {
         for _, event := range events {
             if event.Type == linebot.EventTypeMessage {
                 if msg, ok := event.Message.(*linebot.TextMessage); ok {
+					fmt.Printf("moneyline userid: %s\n", msg.Mention.Mentionees[0].UserID)
                     bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage("受信したメッセージ: "+msg.Text)).Do()
                 }
             }
