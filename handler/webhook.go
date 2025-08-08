@@ -48,8 +48,13 @@ func WebhookHandler(bot *linebot.Client) echo.HandlerFunc {
 					continue
 				}
 
+				var groupID string
+				if event.Source != nil {
+					groupID = event.Source.GroupID
+				}
+
 				// 以下、各処理をusecaseから呼び出すreplyMessage, err = usecase.hogefuga
-				replyMessage, err = usecase.TestMention(msg)
+				replyMessage, err = usecase.TestMention(bot, groupID, msg)
 				if err != nil {
 					log.Println("Error in TestMention:", err)
 					replyMessage = linebot.NewTextMessage("エラーが発生しました。")

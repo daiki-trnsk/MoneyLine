@@ -7,22 +7,28 @@ import (
 	"github.com/line/line-bot-sdk-go/v7/linebot"
 )
 
-func TestMention(msg *linebot.TextMessage) (*linebot.TextMessage, error) {
+func TestMention(bot *linebot.Client, groupID string, msg *linebot.TextMessage) (*linebot.TextMessage, error) {
 	var mentionees []linebot.Mentionee
 	replyText := "Mentioned user:"
-	index := len(replyText)
+	index := len([]rune(replyText))
 
-	for i, m := range msg.Mention.Mentionees {
+	for _, m := range msg.Mention.Mentionees {
 		botUserID := os.Getenv("MONEYLINE_BOT_ID")
 		if m.UserID == botUserID {
 			continue
 		}
-		name := fmt.Sprintf(" @メンバー%d", i+1)
-		fmt.Printf("DEBUG: Mentionee UserID=%s, name=%s, Index=%d, Length=%d\n", m.UserID, name, index+1, len(name)-1)
+		// グループメンバーの表示名を取得
+		profile, err := bot.GetGroupMemberProfile(groupID, m.UserID).Do()
+		if err != nil {
+			fmt.Printf("DEBUG: GetGroupMemberProfile error: %v\n", err)
+			continue
+		}
+		name := fmt.Sprintf(" %s", profile.DisplayName)
+		fmt.Printf("DEBUG: Mentionee UserID=%s, name=%s, Index=%d, Length=%d\n", m.UserID, name, index, len([]rune(name)))
 		replyText += name
 		mentionees = append(mentionees, linebot.Mentionee{
-			Index:  index + 1,     // 空白の次から
-			Length: len([]rune(name)) - 1, // 空白分を除く
+			Index:  index,
+			Length: len([]rune(name)),
 			UserID: m.UserID,
 		})
 		index += len([]rune(name))
