@@ -10,24 +10,22 @@ import (
 func TestMention(msg *linebot.TextMessage) (*linebot.TextMessage, error) {
 	var mentionees []linebot.Mentionee
 	replyText := "Mentioned user:"
-	offset := 0
 	index := len(replyText)
 
-	for _, m := range msg.Mention.Mentionees {
+	for i, m := range msg.Mention.Mentionees {
 		botUserID := os.Getenv("MONEYLINE_BOT_ID")
 		if m.UserID == botUserID {
-			continue // Botはスキップ
+			continue
 		}
-		name := fmt.Sprintf(" @メンバー%d", offset+1)
+		name := fmt.Sprintf(" @メンバー%d", i+1)
 		fmt.Printf("DEBUG: Mentionee UserID=%s, name=%s, Index=%d, Length=%d\n", m.UserID, name, index+1, len(name)-1)
 		replyText += name
 		mentionees = append(mentionees, linebot.Mentionee{
 			Index:  index + 1,     // 空白の次から
-			Length: len(name) - 1, // 空白分を除く
+			Length: len([]rune(name)) - 1, // 空白分を除く
 			UserID: m.UserID,
 		})
-		index += len(name)
-		offset++
+		index += len([]rune(name))
 	}
 
 	if len(mentionees) == 0 {
