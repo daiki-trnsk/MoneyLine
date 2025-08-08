@@ -8,7 +8,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/line/line-bot-sdk-go/v7/linebot"
-	
+
 	"github.com/daiki-trnsk/MoneyLine/handler"
 )
 
@@ -31,5 +31,10 @@ func main() {
 	})
 
 	e.POST("/webhook", handler.WebhookHandler(bot))
-	e.Logger.Fatal(e.Start(":8000"))
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8000"
+	}
+	e.Logger.Fatal(e.Start(":" + port))
 }
