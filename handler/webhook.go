@@ -29,6 +29,8 @@ func WebhookHandler(bot *linebot.Client) echo.HandlerFunc {
 				botUserID := os.Getenv("MONEYLINE_BOT_ID")
 				found := false
 				for _, m := range msg.Mention.Mentionees {
+					log.Printf("マネリンのユーザーID: %s", botUserID)
+					log.Printf("メンションされたユーザーID: %s", m.UserID)
 					if m.UserID == botUserID {
 						found = true
 						break
