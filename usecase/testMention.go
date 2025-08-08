@@ -19,6 +19,7 @@ func TestMention(msg *linebot.TextMessage) (*linebot.TextMessage, error) {
 			continue // Botはスキップ
 		}
 		name := fmt.Sprintf(" @メンバー%d", offset+1)
+		fmt.Printf("DEBUG: Mentionee UserID=%s, name=%s, Index=%d, Length=%d\n", m.UserID, name, index+1, len(name)-1)
 		replyText += name
 		mentionees = append(mentionees, linebot.Mentionee{
 			Index:  index + 1,     // 空白の次から
@@ -30,6 +31,7 @@ func TestMention(msg *linebot.TextMessage) (*linebot.TextMessage, error) {
 	}
 
 	if len(mentionees) == 0 {
+		fmt.Println("DEBUG: No mentionees found")
 		return nil, nil
 	}
 
@@ -37,6 +39,8 @@ func TestMention(msg *linebot.TextMessage) (*linebot.TextMessage, error) {
 	for i := range mentionees {
 		mentioneesPtr[i] = &mentionees[i]
 	}
+
+	fmt.Printf("DEBUG: replyText=%s\n", replyText)
 
 	replyMessage := linebot.NewTextMessage(replyText)
 	replyMessage.Mention = &linebot.Mention{
