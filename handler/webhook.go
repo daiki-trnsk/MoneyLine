@@ -54,6 +54,9 @@ func WebhookHandler(bot *linebot.Client) echo.HandlerFunc {
 					log.Println("Error in TestMention:", err)
 					replyMessage = linebot.NewTextMessage("エラーが発生しました。")
 				}
+				if replyMessage == nil {
+					replyMessage = linebot.NewTextMessage("無効なメッセージです。")
+				}
 			}
 
 			if replyMessage != nil {

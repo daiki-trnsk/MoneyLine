@@ -1,8 +1,8 @@
 package usecase
 
 import (
-	"os"
 	"fmt"
+	"os"
 
 	"github.com/line/line-bot-sdk-go/v7/linebot"
 )
@@ -43,11 +43,13 @@ func TestMention(msg *linebot.TextMessage) (*linebot.TextMessage, error) {
 		mentioneesPtr[i] = &mentionees[i]
 	}
 
-	replyMessage := &linebot.TextMessage{
-		Text: replyText,
-		Mention: &linebot.Mention{
-			Mentionees: mentioneesPtr,
-		},
+	replyMessage := linebot.NewTextMessage(replyText)
+	replyMessage.Mention = &linebot.Mention{
+		Mentionees: mentioneesPtr,
 	}
+	fmt.Println("TestMention called with message:", msg.Text)
+	fmt.Println("Mentionees:", mentioneesPtr)
+	fmt.Println("Reply text:", replyText)
+	fmt.Println("Replying with message:", replyMessage)
 	return replyMessage, nil
 }
