@@ -36,5 +36,5 @@ func main() {
 	if port == "" {
 		port = "8000"
 	}
-	e.Logger.Fatal(e.Start(":" + port))
+	log.Fatal(e.Start(":" + port))
 }
