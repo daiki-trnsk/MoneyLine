@@ -9,25 +9,23 @@ import (
 
 func TestMention(msg *linebot.TextMessage) (*linebot.TextMessage, error) {
 	var mentionees []linebot.Mentionee
-	text := msg.Text
+	replyText := "Mentioned user:"
 	offset := 0
+	index := len(replyText)
 
 	for _, m := range msg.Mention.Mentionees {
-
 		botUserID := os.Getenv("MONEYLINE_BOT_ID")
 		if m.UserID == botUserID {
-			continue // 自分（Bot）はスキップ
+			continue // Botはスキップ
 		}
-
-		// メンション表記（仮）を挿入する（例: @メンバー1 @メンバー2）
-		name := fmt.Sprintf("@メンバー%d", offset+1) // 表示名ではなく仮名
-		start := len(text)
-		text += " " + name
+		name := fmt.Sprintf(" @メンバー%d", offset+1)
+		replyText += name
 		mentionees = append(mentionees, linebot.Mentionee{
-			Index:  start + 1, // 空白の次から
-			Length: len(name),
+			Index:  index + 1,     // 空白の次から
+			Length: len(name) - 1, // 空白分を除く
 			UserID: m.UserID,
 		})
+		index += len(name)
 		offset++
 	}
 
@@ -35,9 +33,6 @@ func TestMention(msg *linebot.TextMessage) (*linebot.TextMessage, error) {
 		return nil, nil
 	}
 
-	// 返信メッセージを構築
-	replyText := fmt.Sprintf("Mentioned user: %s", text[len(msg.Text):]) // 元のメッセージ以降を表示
-	// Convert []linebot.Mentionee to []*linebot.Mentionee
 	mentioneesPtr := make([]*linebot.Mentionee, len(mentionees))
 	for i := range mentionees {
 		mentioneesPtr[i] = &mentionees[i]
@@ -47,9 +42,5 @@ func TestMention(msg *linebot.TextMessage) (*linebot.TextMessage, error) {
 	replyMessage.Mention = &linebot.Mention{
 		Mentionees: mentioneesPtr,
 	}
-	fmt.Println("TestMention called with message:", msg.Text)
-	fmt.Println("Mentionees:", mentioneesPtr)
-	fmt.Println("Reply text:", replyText)
-	fmt.Println("Replying with message:", replyMessage)
 	return replyMessage, nil
 }
