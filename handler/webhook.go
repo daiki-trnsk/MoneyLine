@@ -9,6 +9,7 @@ import (
 	"github.com/line/line-bot-sdk-go/v7/linebot"
 
 	"github.com/daiki-trnsk/MoneyLine/constants"
+	"github.com/daiki-trnsk/MoneyLine/usecase"
 )
 
 func WebhookHandler(bot *linebot.Client) echo.HandlerFunc {
@@ -19,11 +20,11 @@ func WebhookHandler(bot *linebot.Client) echo.HandlerFunc {
 		}
 
 		for _, event := range events {
-			var replyMessage string
+			var replyMessage *linebot.TextMessage
 
 			switch event.Type {
 			case linebot.EventTypeJoin:
-				replyMessage = constants.JoinMessage
+				replyMessage = linebot.NewTextMessage(constants.JoinMessage)
 			case linebot.EventTypeMessage:
 				msg, ok := event.Message.(*linebot.TextMessage)
 				if !ok {
@@ -41,14 +42,22 @@ func WebhookHandler(bot *linebot.Client) echo.HandlerFunc {
 						}
 					}
 				}
+
+				// メンションされていない場合はここでスキップ
 				if !found {
 					continue
 				}
-				replyMessage = "メンションされました！"
+
+				// 以下、各処理をusecaseから呼び出すreplyMessage, err = usecase.hogefuga
+				replyMessage, err = usecase.TestMention(msg)
+				if err != nil {
+					log.Println("Error in TestMention:", err)
+					replyMessage = linebot.NewTextMessage("エラーが発生しました。")
+				}
 			}
 
-			if replyMessage != "" {
-				if _, err := bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage(replyMessage)).Do(); err != nil {
+			if replyMessage != nil {
+				if _, err := bot.ReplyMessage(event.ReplyToken, replyMessage).Do(); err != nil {
 					log.Println("Reply Error:", err)
 				}
 			}
