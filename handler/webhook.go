@@ -4,11 +4,14 @@ import (
 	"log"
 	"net/http"
 	"os"
+
 	// "strconv"
 	// "strings"
 
 	"github.com/labstack/echo/v4"
 	"github.com/line/line-bot-sdk-go/v7/linebot"
+
+	"github.com/daiki-trnsk/MoneyLine/constants"
 )
 
 func WebhookHandler(bot *linebot.Client) echo.HandlerFunc {
@@ -19,6 +22,12 @@ func WebhookHandler(bot *linebot.Client) echo.HandlerFunc {
 		}
 
 		for _, event := range events {
+			if event.Type == linebot.EventTypeJoin {
+				if _, err := bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage(constants.JoinMessage)).Do(); err != nil {
+					log.Println("グループ参加時の返信エラー:", err)
+				}
+				continue
+			}
 			if event.Type == linebot.EventTypeMessage {
 				msg, ok := event.Message.(*linebot.TextMessage)
 				if !ok {
@@ -27,6 +36,9 @@ func WebhookHandler(bot *linebot.Client) echo.HandlerFunc {
 
 				// マネリンがメンションされるか
 				botUserID := os.Getenv("MONEYLINE_BOT_ID")
+				if msg.Mention == nil || msg.Mention.Mentionees == nil || len(msg.Mention.Mentionees) == 0 {
+					continue
+				}
 				found := false
 				for _, m := range msg.Mention.Mentionees {
 					log.Printf("マネリンのユーザーID: %s", botUserID)
