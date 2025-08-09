@@ -28,7 +28,7 @@ func HandleEvent(ctx context.Context, bot *linebot.Client, in dto.Incoming) (lin
 			return nil, nil
 		}
 
-		// TODO: utilsで解析、処理分岐実装
+		// メッセージ解析、処理分岐
 		switch utils.DetectCommand(in.Text) {
 		case utils.CmdSummary:
 			return Summary(bot, in.GroupID, in.Text, in.Mentionees)
@@ -44,15 +44,6 @@ func HandleEvent(ctx context.Context, bot *linebot.Client, in dto.Incoming) (lin
 			}
 			return linebot.NewTextMessage(constants.InvalidMessage), nil
 		}
-
-		// replyMessage, err := TestMention(bot, in.GroupID, in.Mentionees)
-		// if err != nil {
-		// 	return handleError("TestMention", err)
-		// }
-
-		// if replyMessage == nil {
-		// 	return linebot.NewTextMessage("無効なメッセージです。"), nil
-		// }
 	}
 	return nil, nil
 }
