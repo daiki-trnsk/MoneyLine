@@ -20,11 +20,9 @@ func TestMention(bot *linebot.Client, groupID string, mentionees []*linebot.Ment
 		// グループメンバーの表示名を取得
 		profile, err := bot.GetGroupMemberProfile(groupID, m.UserID).Do()
 		if err != nil {
-			fmt.Printf("DEBUG: GetGroupMemberProfile error: %v\n", err)
 			continue
 		}
 		name := fmt.Sprintf(" %s", profile.DisplayName)
-		fmt.Printf("DEBUG: Mentionee UserID=%s, name=%s, Index=%d, Length=%d\n", m.UserID, name, index, len([]rune(name)))
 		replyText += name
 		newMentionees = append(newMentionees, linebot.Mentionee{
 			Index:  index,
@@ -35,7 +33,6 @@ func TestMention(bot *linebot.Client, groupID string, mentionees []*linebot.Ment
 	}
 
 	if len(newMentionees) == 0 {
-		fmt.Println("DEBUG: No mentionees found")
 		return nil, nil
 	}
 

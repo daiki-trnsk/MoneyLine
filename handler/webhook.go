@@ -11,6 +11,7 @@ import (
 	"github.com/daiki-trnsk/MoneyLine/dto"
 )
 
+// WebhookHandler LINEのWebhookイベントをDTO変換して処理し、返信を実行するハンドラー
 func WebhookHandler(bot *linebot.Client) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		events, err := bot.ParseRequest(c.Request())
