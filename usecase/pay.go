@@ -105,21 +105,53 @@ func Pay(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, error) {
 
 // 一覧（グループごとの債権債務集計）
 func Summary(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, error) {
-	// var txs []models.Transaction
-	// if err := infra.DB.Where("group_id = ?", in.GroupID).Find(&txs).Error; err != nil {
-	// 	return linebot.NewTextMessage("一覧取得に失敗しました。"), nil
-	// }
-	// // 集計
-	// summary := make(map[string]float64)
-	// for _, tx := range txs {
-	// 	summary[tx.CreditorID] += tx.Amount
-	// 	summary[tx.DebtorID] -= tx.Amount
-	// }
-	// msg := "💰 一覧\n"
-	// for user, amount := range summary {
-	// 	msg += "@" + user + ": " + utils.FormatAmount(amount) + "\n"
-	// }
-	msg := "Summary called"
+	var txs []models.Transaction
+	if err := infra.DB.Where("group_id = ?", in.GroupID).Find(&txs).Error; err != nil {
+		return linebot.NewTextMessage("一覧取得に失敗しました。"), nil
+	}
+	// 二者間ごとに差引残高を計算
+	type pair struct {
+		Creditor string
+		Debtor   string
+	}
+	balances := make(map[pair]float64)
+	for _, tx := range txs {
+		p := pair{tx.CreditorID, tx.DebtorID}
+		balances[p] += tx.Amount
+		// 逆方向も考慮
+		pRev := pair{tx.DebtorID, tx.CreditorID}
+		if _, ok := balances[pRev]; !ok {
+			balances[pRev] = 0
+		}
+	}
+
+	// 差引残高が0でないペアのみ表示
+	msg := "💰未払い一覧\n"
+	count := 0
+	checked := make(map[string]map[string]bool)
+	for p, amount := range balances {
+		if amount == 0 {
+			continue
+		}
+		// 逆方向は表示しない
+		if checked[p.Creditor] == nil {
+			checked[p.Creditor] = make(map[string]bool)
+		}
+		if checked[p.Creditor][p.Debtor] || checked[p.Debtor][p.Creditor] {
+			continue
+		}
+		if amount > 0 {
+			msg += "@" + p.Creditor + " → @" + p.Debtor + " : " + utils.FormatAmount(amount) + "\n"
+		} else {
+			msg += "@" + p.Debtor + " → @" + p.Creditor + " : " + utils.FormatAmount(-amount) + "\n"
+		}
+		checked[p.Creditor][p.Debtor] = true
+		checked[p.Debtor][p.Creditor] = true
+		count++
+	}
+	if count == 0 {
+		msg += "現在、未払い情報はありません。"
+	}
 	return linebot.NewTextMessage(msg), nil
 }
 
