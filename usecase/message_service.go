@@ -3,7 +3,6 @@ package usecase
 import (
 	"context"
 	"os"
-	"strings"
 
 	"github.com/line/line-bot-sdk-go/v7/linebot"
 
@@ -27,12 +26,6 @@ func HandleEvent(ctx context.Context, bot *linebot.Client, in dto.Incoming) (lin
 		botUserID := os.Getenv("MONEYLINE_BOT_ID")
 		if !utils.IsMentioned(in.Mentionees, botUserID) {
 			return nil, nil
-		}
-
-		// メッセージの最初に@マネリンがいない場合はエラー返す
-		fields := strings.Fields(in.Text)
-		if len(fields) == 0 || !strings.HasPrefix(fields[0], "@") || fields[0] != "@マネリン|金銭管理Bot" {
-			return linebot.NewTextMessage("@マネリンを文頭でメンションしてください。"), nil
 		}
 
 		// メッセージ解析、処理分岐
