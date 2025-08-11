@@ -83,24 +83,23 @@ func Pay(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, error) {
 		}
 	}
 
-	var msg string
+	var upper, lower string
+	var bal float64
 	if balance >= 0 {
-		msg = "記録しました\n" + note + "\n金額: " + utils.FormatAmount(amount) +
-			"\n差引残高" +
-			"\n" + creditorID +
-			"\n↓" +
-			"\n" + debtorID +
-			"\n" + utils.FormatAmount(balance)
+		upper = creditorID
+		lower = debtorID
+		bal = balance
 	} else {
-		// 債務者が債権者になる場合
-		// あとで順不同対応
-		msg = "記録しました\n" + note + "\n金額: " + utils.FormatAmount(amount) +
-			"\n差引残高" +
-			"\n" + debtorID +
-			"\n↓" +
-			"\n" + creditorID +
-			"\n" + utils.FormatAmount(-balance)
+		upper = debtorID
+		lower = creditorID
+		bal = -balance
 	}
+	upperProfile, _ := bot.GetGroupMemberProfile(in.GroupID, upper).Do()
+	lowerProfile, _ := bot.GetGroupMemberProfile(in.GroupID, lower).Do()
+	msg := "記録しました！\n" + note + " : " + utils.FormatAmount(amount) + "円" +
+		"\n差引残高" +
+		"\n" + upperProfile.DisplayName + " → " + lowerProfile.DisplayName +
+		"\n" + utils.FormatAmount(bal) + "円"
 	return linebot.NewTextMessage(msg), nil
 }
 
@@ -141,11 +140,20 @@ func Summary(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, error)
 		}
 		// amount > 0: User1がUser2に貸している
 		// amount < 0: User2がUser1に貸している
+		var upper, lower string
+		var bal float64
 		if amount > 0 {
-			msg += "@" + p.User1 + " → @" + p.User2 + " : " + utils.FormatAmount(amount) + "\n"
+			upper = p.User1
+			lower = p.User2
+			bal = amount
 		} else {
-			msg += "@" + p.User2 + " → @" + p.User1 + " : " + utils.FormatAmount(-amount) + "\n"
+			upper = p.User2
+			lower = p.User1
+			bal = -amount
 		}
+		upperProfile, _ := bot.GetGroupMemberProfile(in.GroupID, upper).Do()
+		lowerProfile, _ := bot.GetGroupMemberProfile(in.GroupID, lower).Do()
+		msg +=  upperProfile.DisplayName + " → " + lowerProfile.DisplayName + " : " + utils.FormatAmount(bal) + "円" + "\n"
 		count++
 	}
 	if count == 0 {
