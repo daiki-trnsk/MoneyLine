@@ -96,7 +96,7 @@ func Pay(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, error) {
 		}
 		upperProfile, _ := bot.GetGroupMemberProfile(in.GroupID, upper).Do()
 		lowerProfile, _ := bot.GetGroupMemberProfile(in.GroupID, lower).Do()
-		msgs += upperProfile.DisplayName + " → " + lowerProfile.DisplayName + " " +
+		msgs += upperProfile.DisplayName + " → " + lowerProfile.DisplayName + "\n" +
 			utils.FormatAmount(bal) + "円\n"
 	}
 
