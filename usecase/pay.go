@@ -44,8 +44,10 @@ func Pay(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, error) {
 	}
 
 	msgs := "記録しました！\n" +
-		note + " : " + utils.FormatAmount(amount) + "円\n" +
-		"差引残高：\n"
+		note + " : " + utils.FormatAmount(amount) + "円\n\n" +
+		"差引残高：\n\n"
+
+	var balanceLines []string
 
 	for i := 1; i < len(in.Mentionees); i++ {
 		debtorID := in.Mentionees[i].UserID
@@ -96,8 +98,11 @@ func Pay(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, error) {
 		}
 		upperProfile, _ := bot.GetGroupMemberProfile(in.GroupID, upper).Do()
 		lowerProfile, _ := bot.GetGroupMemberProfile(in.GroupID, lower).Do()
-		msgs += upperProfile.DisplayName + " → " + lowerProfile.DisplayName + "\n" +
-			utils.FormatAmount(bal) + "円\n"
+		balanceLines = append(balanceLines, upperProfile.DisplayName+" → "+lowerProfile.DisplayName+"\n"+utils.FormatAmount(bal)+"円")
+	}
+
+	if len(balanceLines) > 0 {
+		msgs += strings.Join(balanceLines, "\n")
 	}
 
 	return linebot.NewTextMessage(msgs), nil
@@ -132,8 +137,9 @@ func Summary(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, error)
 		}
 	}
 
-	msg := "未払い一覧\n"
+	msg := "未払い一覧\n\n"
 	count := 0
+	var lines []string
 	for p, amount := range balances {
 		if amount == 0 {
 			continue
@@ -153,11 +159,13 @@ func Summary(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, error)
 		}
 		upperProfile, _ := bot.GetGroupMemberProfile(in.GroupID, upper).Do()
 		lowerProfile, _ := bot.GetGroupMemberProfile(in.GroupID, lower).Do()
-		msg += upperProfile.DisplayName + " → " + lowerProfile.DisplayName + " : " + utils.FormatAmount(bal) + "円" + "\n"
+		lines = append(lines, upperProfile.DisplayName+" → "+lowerProfile.DisplayName+"\n"+utils.FormatAmount(bal)+"円")
 		count++
 	}
 	if count == 0 {
 		msg += "現在、未払い情報はありません。"
+	} else {
+		msg += strings.Join(lines, "\n")
 	}
 	return linebot.NewTextMessage(msg), nil
 }
