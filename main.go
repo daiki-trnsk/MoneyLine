@@ -10,9 +10,12 @@ import (
 	"github.com/line/line-bot-sdk-go/v7/linebot"
 
 	"github.com/daiki-trnsk/MoneyLine/handler"
+	"github.com/daiki-trnsk/MoneyLine/infra"
 )
 
 func main() {
+	infra.InitDB()
+
 	e := echo.New()
 
 	e.Use(middleware.Logger())

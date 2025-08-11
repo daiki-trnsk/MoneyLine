@@ -31,16 +31,16 @@ func HandleEvent(ctx context.Context, bot *linebot.Client, in dto.Incoming) (lin
 		// メッセージ解析、処理分岐
 		switch utils.DetectCommand(in.Text) {
 		case utils.CmdSummary:
-			return Summary(bot, in.GroupID, in.Text, in.Mentionees)
+			return Summary(bot, in)
 		case utils.CmdHistory:
-			return History(bot, in.GroupID, in.Text, in.Mentionees)
+			return History(bot, in)
 		case utils.CmdHelp:
 			return linebot.NewTextMessage(constants.HelpMessage), nil
 		default:
 			// マネリン以外のメンション+数字でPay処理
 			// 例: @マネリン 1000
 			if len(in.Mentionees) > 1 && utils.ContainsNumber(in.Text) {
-				return Pay(bot, in.GroupID, in.Text, in.Mentionees)
+				return Pay(bot, in)
 			}
 			return linebot.NewTextMessage(constants.InvalidMessage), nil
 		}

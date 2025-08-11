@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"fmt"
 	"strings"
 )
 
@@ -46,7 +45,6 @@ func ContainsNumber(text string) bool {
 
 func DetectCommand(text string) string {
 	t := norm(text)
-	fmt.Printf("[DEBUG] norm(text)='%s'\n", t)
 	switch {
 	case strings.Contains(t, "一覧"):
 		return CmdSummary
