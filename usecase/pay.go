@@ -83,8 +83,23 @@ func Pay(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, error) {
 		}
 	}
 
-	msg := "記録しました！\n" + note + "\n金額: " + utils.FormatAmount(amount) +
-		"\n現在の残高（@" + creditorID + "→@" + debtorID + "）: " + utils.FormatAmount(balance)
+	var msg string
+	if balance >= 0 {
+		msg = "記録しました\n" + note + "\n金額: " + utils.FormatAmount(amount) +
+			"\n差引残高" +
+			"\n" + creditorID +
+			"\n↓" +
+			"\n" + debtorID +
+			"\n" + utils.FormatAmount(balance)
+	} else {
+		// 債務者が債権者になる場合
+		msg = "記録しました\n" + note + "\n金額: " + utils.FormatAmount(amount) +
+			"\n差引残高" +
+			"\n" + debtorID +
+			"\n↓" +
+			"\n" + creditorID +
+			"\n" + utils.FormatAmount(-balance)
+	}
 	return linebot.NewTextMessage(msg), nil
 }
 
