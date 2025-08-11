@@ -93,6 +93,7 @@ func Pay(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, error) {
 			"\n" + utils.FormatAmount(balance)
 	} else {
 		// 債務者が債権者になる場合
+		// あとで順不同対応
 		msg = "記録しました\n" + note + "\n金額: " + utils.FormatAmount(amount) +
 			"\n差引残高" +
 			"\n" + debtorID +
@@ -105,48 +106,46 @@ func Pay(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, error) {
 
 // 一覧（グループごとの債権債務集計）
 func Summary(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, error) {
+	defer func() {
+		if r := recover(); r != nil {
+			bot.PushMessage(in.GroupID, linebot.NewTextMessage("一覧取得中に予期せぬエラーが発生しました")).Do()
+		}
+	}()
+
 	var txs []models.Transaction
 	if err := infra.DB.Where("group_id = ?", in.GroupID).Find(&txs).Error; err != nil {
 		return linebot.NewTextMessage("一覧取得に失敗しました。"), nil
 	}
-	// 二者間ごとに差引残高を計算
+
 	type pair struct {
-		Creditor string
-		Debtor   string
+		User1 string
+		User2 string
 	}
+
 	balances := make(map[pair]float64)
 	for _, tx := range txs {
-		p := pair{tx.CreditorID, tx.DebtorID}
-		balances[p] += tx.Amount
-		// 逆方向も考慮
-		pRev := pair{tx.DebtorID, tx.CreditorID}
-		if _, ok := balances[pRev]; !ok {
-			balances[pRev] = 0
+		u1, u2 := tx.CreditorID, tx.DebtorID
+		if u1 > u2 {
+			u1, u2 = u2, u1
+			balances[pair{u1, u2}] -= tx.Amount
+		} else {
+			balances[pair{u1, u2}] += tx.Amount
 		}
 	}
 
-	// 差引残高が0でないペアのみ表示
-	msg := "💰未払い一覧\n"
+	msg := "未払い一覧\n"
 	count := 0
-	checked := make(map[string]map[string]bool)
 	for p, amount := range balances {
 		if amount == 0 {
 			continue
 		}
-		// 逆方向は表示しない
-		if checked[p.Creditor] == nil {
-			checked[p.Creditor] = make(map[string]bool)
-		}
-		if checked[p.Creditor][p.Debtor] || checked[p.Debtor][p.Creditor] {
-			continue
-		}
+		// amount > 0: User1がUser2に貸している
+		// amount < 0: User2がUser1に貸している
 		if amount > 0 {
-			msg += "@" + p.Creditor + " → @" + p.Debtor + " : " + utils.FormatAmount(amount) + "\n"
+			msg += "@" + p.User1 + " → @" + p.User2 + " : " + utils.FormatAmount(amount) + "\n"
 		} else {
-			msg += "@" + p.Debtor + " → @" + p.Creditor + " : " + utils.FormatAmount(-amount) + "\n"
+			msg += "@" + p.User2 + " → @" + p.User1 + " : " + utils.FormatAmount(-amount) + "\n"
 		}
-		checked[p.Creditor][p.Debtor] = true
-		checked[p.Debtor][p.Creditor] = true
 		count++
 	}
 	if count == 0 {
