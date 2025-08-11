@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	"github.com/line/line-bot-sdk-go/v7/linebot"
@@ -27,6 +28,8 @@ func HandleEvent(ctx context.Context, bot *linebot.Client, in dto.Incoming) (lin
 		if !utils.IsMentioned(in.Mentionees, botUserID) {
 			return nil, nil
 		}
+
+		fmt.Println(in.Text)
 
 		// メッセージ解析、処理分岐
 		switch utils.DetectCommand(in.Text) {
