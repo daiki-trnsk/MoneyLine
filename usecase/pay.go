@@ -96,10 +96,11 @@ func Pay(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, error) {
 	}
 	upperProfile, _ := bot.GetGroupMemberProfile(in.GroupID, upper).Do()
 	lowerProfile, _ := bot.GetGroupMemberProfile(in.GroupID, lower).Do()
-	msg := "記録しました！\n" + note + " : " + utils.FormatAmount(amount) + "円" +
-		"\n差引残高" +
-		"\n" + upperProfile.DisplayName + " → " + lowerProfile.DisplayName +
-		"\n" + utils.FormatAmount(bal) + "円"
+	msg := "記録しました！\n" +
+		note + " : " + utils.FormatAmount(amount) + "円\n\n" +
+		"差引残高：\n" +
+		upperProfile.DisplayName + " → " + lowerProfile.DisplayName + "\n" +
+		utils.FormatAmount(bal) + "円"
 	return linebot.NewTextMessage(msg), nil
 }
 
@@ -153,7 +154,7 @@ func Summary(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, error)
 		}
 		upperProfile, _ := bot.GetGroupMemberProfile(in.GroupID, upper).Do()
 		lowerProfile, _ := bot.GetGroupMemberProfile(in.GroupID, lower).Do()
-		msg +=  upperProfile.DisplayName + " → " + lowerProfile.DisplayName + " : " + utils.FormatAmount(bal) + "円" + "\n"
+		msg += upperProfile.DisplayName + " → " + lowerProfile.DisplayName + " : " + utils.FormatAmount(bal) + "円" + "\n"
 		count++
 	}
 	if count == 0 {
