@@ -45,7 +45,7 @@ func Pay(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, error) {
 
 	msgs := "記録しました！\n" +
 		note + " : " + utils.FormatAmount(amount) + "円\n\n" +
-		"差引残高：\n\n"
+		"💰差引残高：\n"
 
 	var balanceLines []string
 
@@ -137,7 +137,7 @@ func Summary(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, error)
 		}
 	}
 
-	msg := "未払い一覧\n\n"
+	msg := "💰未払い一覧\n\n"
 	count := 0
 	var lines []string
 	for p, amount := range balances {
