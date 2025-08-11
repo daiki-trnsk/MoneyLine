@@ -43,7 +43,10 @@ func Pay(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, error) {
 		return linebot.NewTextMessage("記録に必要な情報が不足しています。"), nil
 	}
 
-	msgs := ""
+	msgs := "記録しました！\n" +
+		note + " : " + utils.FormatAmount(amount) + "円\n" +
+		"差引残高：\n"
+
 	for i := 1; i < len(in.Mentionees); i++ {
 		debtorID := in.Mentionees[i].UserID
 		tx := models.Transaction{
@@ -56,8 +59,9 @@ func Pay(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, error) {
 			UpdatedAt:  time.Now(),
 		}
 		if err := infra.DB.Create(&tx).Error; err != nil {
+			msgs = ""
 			msgs += "@" + debtorID + " 記録に失敗しました。\n"
-			continue
+			return linebot.NewTextMessage(msgs), nil
 		}
 
 		var txs []models.Transaction
@@ -65,8 +69,9 @@ func Pay(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, error) {
 			"group_id = ? AND ((creditor_id = ? AND debtor_id = ?) OR (creditor_id = ? AND debtor_id = ?))",
 			in.GroupID, creditorID, debtorID, debtorID, creditorID,
 		).Find(&txs).Error; err != nil {
+			msgs = ""
 			msgs += "@" + debtorID + " 記録しましたが、残高取得に失敗しました。\n"
-			continue
+			return linebot.NewTextMessage(msgs), nil
 		}
 
 		balance := 0.0
@@ -91,11 +96,8 @@ func Pay(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, error) {
 		}
 		upperProfile, _ := bot.GetGroupMemberProfile(in.GroupID, upper).Do()
 		lowerProfile, _ := bot.GetGroupMemberProfile(in.GroupID, lower).Do()
-		msgs += "記録しました！\n" +
-			note + " : " + utils.FormatAmount(amount) + "円\n" +
-			"差引残高：\n" +
-			upperProfile.DisplayName + " → " + lowerProfile.DisplayName + "\n" +
-			utils.FormatAmount(bal) + "円\n\n"
+		msgs += upperProfile.DisplayName + " → " + lowerProfile.DisplayName + " " +
+			utils.FormatAmount(bal) + "円\n"
 	}
 
 	return linebot.NewTextMessage(msgs), nil
