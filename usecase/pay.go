@@ -86,9 +86,17 @@ func Pay(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, error) {
 	msgs := "記録しました！\n" +
 		note + "：" + utils.FormatAmount(amount) + "円\n\n"
 
-	msgs += "@" + creditorID + "\n↓\n"
+	creditorProfile, err := bot.GetGroupMemberProfile(in.GroupID, creditorID).Do()
+	if err != nil {
+		return linebot.NewTextMessage("債権者情報の取得に失敗しました。"), nil
+	}
+	msgs += "@" + creditorProfile.DisplayName + "\n↓\n"
 	for _, debtorID := range debtorIDs {
-		msgs += "@" + debtorID + "\n"
+		debtorProfile, err := bot.GetGroupMemberProfile(in.GroupID, debtorID).Do()
+		if err != nil {
+			return linebot.NewTextMessage("債務者情報の取得に失敗しました。"), nil
+		}
+		msgs += "@" + debtorProfile.DisplayName + "\n"
 	}
 
 	return linebot.NewTextMessage(msgs), nil
