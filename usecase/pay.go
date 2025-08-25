@@ -83,8 +83,7 @@ func Pay(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, error) {
 	}
 
 	// メッセージ作成
-	msgs := "記録しました！\n" +
-		note + "：" + utils.FormatAmount(amount) + "円\n\n"
+	msgs := "記録しました！\n\n"
 
 	creditorProfile, err := bot.GetGroupMemberProfile(in.GroupID, creditorID).Do()
 	if err != nil {
@@ -98,6 +97,7 @@ func Pay(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, error) {
 		}
 		msgs += "@" + debtorProfile.DisplayName + "\n"
 	}
+	msgs += "\n" + note + "：" + utils.FormatAmount(amount) + "円"
 
 	return linebot.NewTextMessage(msgs), nil
 }
@@ -175,7 +175,7 @@ func SettleGreedy(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, e
 
 	// 4) 出力
 	var b strings.Builder
-	b.WriteString("清算方法\n")
+	b.WriteString("清算方法\n\n")
 	for _, t := range res {
 		from, _ := bot.GetGroupMemberProfile(in.GroupID, t.From).Do()
 		to, _ := bot.GetGroupMemberProfile(in.GroupID, t.To).Do()
