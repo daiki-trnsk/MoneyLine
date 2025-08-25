@@ -84,47 +84,11 @@ func Pay(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, error) {
 
 	// メッセージ作成
 	msgs := "記録しました！\n" +
-		note + " : " + utils.FormatAmount(amount) + "円\n\n" +
-		"💰差引残高：\n"
+		note + "：" + utils.FormatAmount(amount) + "円\n\n"
 
-	var balanceLines []string
+	msgs += "@" + creditorID + "\n↓\n"
 	for _, debtorID := range debtorIDs {
-		var txs []models.Transaction
-		if err := infra.DB.Where(
-			"group_id = ? AND ((creditor_id = ? AND debtor_id = ?) OR (creditor_id = ? AND debtor_id = ?))",
-			in.GroupID, creditorID, debtorID, debtorID, creditorID,
-		).Find(&txs).Error; err != nil {
-			msgs += "@" + debtorID + " 残高取得に失敗しました。\n"
-			continue
-		}
-
-		balance := int64(0)
-		for _, t := range txs {
-			if t.CreditorID == creditorID {
-				balance += t.Amount
-			} else {
-				balance -= t.Amount
-			}
-		}
-
-		var upper, lower string
-		var bal int64
-		if balance >= 0 {
-			upper = creditorID
-			lower = debtorID
-			bal = balance
-		} else {
-			upper = debtorID
-			lower = creditorID
-			bal = -balance
-		}
-		upperProfile, _ := bot.GetGroupMemberProfile(in.GroupID, upper).Do()
-		lowerProfile, _ := bot.GetGroupMemberProfile(in.GroupID, lower).Do()
-		balanceLines = append(balanceLines, upperProfile.DisplayName+" → "+lowerProfile.DisplayName+"\n"+utils.FormatAmount(bal)+"円")
-	}
-
-	if len(balanceLines) > 0 {
-		msgs += strings.Join(balanceLines, "\n")
+		msgs += "@" + debtorID + "\n"
 	}
 
 	return linebot.NewTextMessage(msgs), nil
@@ -203,8 +167,7 @@ func SettleGreedy(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, e
 
 	// 4) 出力
 	var b strings.Builder
-	b.WriteString("🧮 貪欲法清算テスト\n")
-	b.WriteString(fmt.Sprintf("取引回数: %d 回\n\n", len(res)))
+	b.WriteString("清算方法\n")
 	for _, t := range res {
 		from, _ := bot.GetGroupMemberProfile(in.GroupID, t.From).Do()
 		to, _ := bot.GetGroupMemberProfile(in.GroupID, t.To).Do()
