@@ -34,7 +34,7 @@ func HandleEvent(ctx context.Context, bot *linebot.Client, in dto.Incoming) (lin
 		// メッセージ解析、処理分岐
 		switch utils.DetectCommand(in.Text) {
 		case utils.CmdSummary:
-			return Summary(bot, in)
+			return SettleGreedy(bot, in)
 		case utils.CmdHistory:
 			return History(bot, in)
 		case utils.CmdHelp:

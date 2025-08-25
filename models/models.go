@@ -13,7 +13,7 @@ type Transaction struct {
 	CreditorID string    `gorm:"index"` // 債権者 LINE ID
 	DebtorID   string    `gorm:"index"` // 債務者 LINE ID
 	GroupID    string    `gorm:"index"` // グループ LINE ID
-	Amount     float64
+	Amount     int64
 	Note       string
 	CreatedAt  time.Time
 	UpdatedAt  time.Time

@@ -20,8 +20,8 @@ func toHalfWidth(s string) string {
 	return result.String()
 }
 
-// ParseAmount: 文字列から金額(float64)を抽出
-func ParseAmount(s string) (float64, error) {
+// ParseAmount: 文字列から金額を抽出
+func ParseAmount(s string) (int64, error) {
 	s = toHalfWidth(s)
 	// 末尾の「円」や空白を除去
 	s = strings.TrimSpace(s)
@@ -33,7 +33,7 @@ func ParseAmount(s string) (float64, error) {
 			digits.WriteRune(r)
 		}
 	}
-	value, err := strconv.ParseFloat(digits.String(), 64)
+	value, err := strconv.ParseInt(digits.String(), 10, 64)
 	if err != nil {
 		return 0, err
 	}
@@ -41,6 +41,6 @@ func ParseAmount(s string) (float64, error) {
 }
 
 // FormatAmount: 金額をカンマ区切りで文字列化
-func FormatAmount(a float64) string {
-	return strconv.FormatFloat(a, 'f', 0, 64)
+func FormatAmount(a int64) string {
+	return strconv.FormatInt(a, 10)
 }
