@@ -48,9 +48,9 @@ func DetectCommand(text string) string {
 	switch {
 	case strings.Contains(t, "一覧"):
 		return CmdSummary
-	case strings.Contains(t, "清算"):
+	case strings.Contains(t, "清算"), strings.Contains(t, "精算"), strings.Contains(t, "せいさん"):
 		return CmdSummary
-	case strings.Contains(t, "履歴"):
+	case strings.Contains(t, "履歴"), strings.Contains(t, "りれき"):
 		return CmdHistory
 	case strings.Contains(t, "使い方"), strings.Contains(t, "ヘルプ"):
 		return CmdHelp
