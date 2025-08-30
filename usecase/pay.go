@@ -23,39 +23,27 @@ type transfer struct {
 
 // 貸し借りを記録
 func Pay(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, error) {
-	// 送信者（債権者）
-	creditorID := in.SenderID
-
-	// 「@マネリン @債務者1 @債務者2 金額 メモ」を想定
-	parts := strings.Fields(in.Text)
-	amount := int64(0)
-	note := ""
-	for _, p := range parts {
-		if strings.HasPrefix(p, "@") {
-			continue
-		}
-		if amount == 0 {
-			if a, err := utils.ParseAmount(p); err == nil {
-				amount = a
-				continue
-			}
-		}
-		if amount > 0 {
-			if note != "" {
-				note += " "
-			}
-			note += p
-		}
+	// メッセージのバリデーション
+	amount, note, err := validateMessageFormat(in.Text)
+	if err != nil {
+		return linebot.NewTextMessage(err.Error()), nil
 	}
 
-	if creditorID == "" || len(in.Mentionees) < 2 || amount == 0 {
+	// 送信者（債権者）
+	creditorID := in.SenderID
+	if creditorID == "" || len(in.Mentionees) < 2 {
 		return linebot.NewTextMessage("記録に必要な情報が不足しています。"), nil
 	}
 
 	// 債務者を取得
 	debtorIDs := []string{}
+	seen := make(map[string]bool)
 	for i := 1; i < len(in.Mentionees); i++ {
-		debtorIDs = append(debtorIDs, in.Mentionees[i].UserID)
+		userID := in.Mentionees[i].UserID
+		if !seen[userID] {
+			debtorIDs = append(debtorIDs, userID)
+			seen[userID] = true
+		}
 	}
 
 	// 取引を作成
@@ -102,15 +90,35 @@ func Pay(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, error) {
 	return linebot.NewTextMessage(msgs), nil
 }
 
+// メッセージのバリデーション
+func validateMessageFormat(text string) (int64, string, error) {
+	parts := strings.Fields(text)
+
+	// 必須要素の数をチェック
+	if len(parts) < 4 {
+		return 0, "", fmt.Errorf("メッセージ形式が正しくありません。\n\n形式: @マネリン @借りた人(複数可) 金額 メモ \n\n使い方を確認するには私のメンションのみ送信してください。")
+	}
+
+	// 金額をパース
+	amount, err := utils.ParseAmount(parts[len(parts)-2])
+	if err != nil {
+		return 0, "", fmt.Errorf("メッセージ形式が正しくありません。\n\n形式: @マネリン @借りた人(複数可) 金額 メモ \n\n使い方を確認するには私のメンションのみ送信してください。")
+	}
+
+	// メモを取得
+	note := strings.Join(parts[len(parts)-1:], " ")
+
+	return amount, note, nil
+}
+
 // 貪欲清算
 func SettleGreedy(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, error) {
-	// 1) 取引履歴 → ネット残高
 	var txs []models.Transaction
 	if err := infra.DB.Where("group_id = ?", in.GroupID).Find(&txs).Error; err != nil {
 		return linebot.NewTextMessage("清算案の作成に失敗しました。"), nil
 	}
 
-	net := make(map[string]int64) // +受取 / -支払
+	net := make(map[string]int64)
 
 	// 各取引に紐づく債務者を取得
 	for _, tx := range txs {
@@ -133,7 +141,6 @@ func SettleGreedy(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, e
 		}
 	}
 
-	// 債権者(+) / 債務者(-) に分割
 	type node struct {
 		id  string
 		amt int64
@@ -143,14 +150,13 @@ func SettleGreedy(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, e
 		if v > 0 {
 			creditors = append(creditors, node{id, v})
 		} else if v < 0 {
-			debtors = append(debtors, node{id, -v}) // 正にして保持（払うべき額）
+			debtors = append(debtors, node{id, -v})
 		}
 	}
 	if len(creditors) == 0 || len(debtors) == 0 {
 		return linebot.NewTextMessage("清算は不要です。"), nil
 	}
 
-	// 3) 金額大きい順で貪欲に消し込み
 	sort.Slice(creditors, func(i, j int) bool { return creditors[i].amt > creditors[j].amt })
 	sort.Slice(debtors, func(i, j int) bool { return debtors[i].amt > debtors[j].amt })
 
@@ -173,13 +179,12 @@ func SettleGreedy(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, e
 		}
 	}
 
-	// 4) 出力
 	var b strings.Builder
 	b.WriteString("清算方法\n\n")
 	for _, t := range res {
 		from, _ := bot.GetGroupMemberProfile(in.GroupID, t.From).Do()
 		to, _ := bot.GetGroupMemberProfile(in.GroupID, t.To).Do()
-		b.WriteString(fmt.Sprintf("%s → %s: %s円\n",
+		b.WriteString(fmt.Sprintf("%s → %s \n %s円\n\n",
 			safeName(from), safeName(to), formatYen(t.Amt)))
 	}
 	return linebot.NewTextMessage(b.String()), nil
@@ -196,11 +201,10 @@ func safeName(p *linebot.UserProfileResponse) string {
 	if p == nil {
 		return "（不明）"
 	}
-	return p.DisplayName
+	return "@" + p.DisplayName
 }
 
 func formatYen(v int64) string {
-	// カンマ区切りにしたいならここを差し替え（utils側に合わせてOK）
 	return strconv.FormatInt(v, 10)
 }
 

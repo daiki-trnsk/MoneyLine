@@ -41,7 +41,6 @@ func HandleEvent(ctx context.Context, bot *linebot.Client, in dto.Incoming) (lin
 			return linebot.NewTextMessage(constants.HelpMessage), nil
 		default:
 			// マネリン以外のメンション+数字でPay処理
-			// 例: @マネリン 1000
 			if len(in.Mentionees) > 1 && utils.ContainsNumber(in.Text) {
 				return Pay(bot, in)
 			}
