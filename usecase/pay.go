@@ -40,6 +40,9 @@ func Pay(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, error) {
 	seen := make(map[string]bool)
 	for i := 1; i < len(in.Mentionees); i++ {
 		userID := in.Mentionees[i].UserID
+		if userID == "Ub6061e6481654240cb2891f72a8fae59" {
+			return linebot.NewTextMessage("文頭にのみマネリンをメンションしてください"), nil
+		}
 		if !seen[userID] {
 			debtorIDs = append(debtorIDs, userID)
 			seen[userID] = true
@@ -93,6 +96,11 @@ func Pay(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, error) {
 // メッセージのバリデーション
 func validateMessageFormat(text string) (int64, string, error) {
 	parts := strings.Fields(text)
+
+	// 文頭に @マネリン が含まれているかチェック
+    if len(parts) == 0 || !strings.HasPrefix(parts[0], "@マネリン") {
+        return 0, "", fmt.Errorf("メッセージ形式が正しくありません。\n\n形式: @マネリン @借りた人(複数可) 金額 メモ \n\n使い方を確認するには私のメンションのみ送信してください。")
+    }
 
 	// 必須要素の数をチェック
 	if len(parts) < 4 {
@@ -251,65 +259,3 @@ func History(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, error)
 
 	return linebot.NewTextMessage(msg), nil
 }
-
-// 一覧（グループごとの債権債務集計）
-// func Summary(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, error) {
-// 	defer func() {
-// 		if r := recover(); r != nil {
-// 			bot.PushMessage(in.GroupID, linebot.NewTextMessage("一覧取得中に予期せぬエラーが発生しました")).Do()
-// 		}
-// 	}()
-
-// 	var txs []models.Transaction
-// 	if err := infra.DB.Where("group_id = ?", in.GroupID).Find(&txs).Error; err != nil {
-// 		return linebot.NewTextMessage("一覧取得に失敗しました。"), nil
-// 	}
-
-// 	type pair struct {
-// 		User1 string
-// 		User2 string
-// 	}
-
-// 	balances := make(map[pair]int64)
-// 	for _, tx := range txs {
-// 		u1, u2 := tx.CreditorID, tx.DebtorID
-// 		if u1 > u2 {
-// 			u1, u2 = u2, u1
-// 			balances[pair{u1, u2}] -= tx.Amount
-// 		} else {
-// 			balances[pair{u1, u2}] += tx.Amount
-// 		}
-// 	}
-
-// 	msg := "💰未払い一覧\n\n"
-// 	count := 0
-// 	var lines []string
-// 	for p, amount := range balances {
-// 		if amount == 0 {
-// 			continue
-// 		}
-// 		// amount > 0: User1がUser2に貸している
-// 		// amount < 0: User2がUser1に貸している
-// 		var upper, lower string
-// 		var bal int64
-// 		if amount > 0 {
-// 			upper = p.User1
-// 			lower = p.User2
-// 			bal = amount
-// 		} else {
-// 			upper = p.User2
-// 			lower = p.User1
-// 			bal = -amount
-// 		}
-// 		upperProfile, _ := bot.GetGroupMemberProfile(in.GroupID, upper).Do()
-// 		lowerProfile, _ := bot.GetGroupMemberProfile(in.GroupID, lower).Do()
-// 		lines = append(lines, upperProfile.DisplayName+" → "+lowerProfile.DisplayName+"\n"+utils.FormatAmount(bal)+"円")
-// 		count++
-// 	}
-// 	if count == 0 {
-// 		msg += "現在、未払い情報はありません。"
-// 	} else {
-// 		msg += strings.Join(lines, "\n")
-// 	}
-// 	return linebot.NewTextMessage(msg), nil
-// }
