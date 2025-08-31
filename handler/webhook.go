@@ -9,6 +9,7 @@ import (
 
 	"github.com/daiki-trnsk/MoneyLine/usecase"
 	"github.com/daiki-trnsk/MoneyLine/dto"
+	"github.com/daiki-trnsk/MoneyLine/utils"
 )
 
 // WebhookHandler LINEのWebhookイベントをDTO変換して処理し、返信を実行するハンドラー
@@ -31,6 +32,13 @@ func WebhookHandler(bot *linebot.Client) echo.HandlerFunc {
 				if _, err := bot.ReplyMessage(in.ReplyToken, reply).Do(); err != nil {
 					log.Printf("Error replying message: %v", err)
 					return c.NoContent(http.StatusOK)
+				}
+			}
+			if event.Type == linebot.EventTypeFollow {
+				subject := "New Friend Added"
+				body := "A new friend has been added to the LINE bot."
+				if err := utils.SendEmail(subject, body); err != nil {
+					log.Printf("Error sending notification email: %v", err)
 				}
 			}
 		}
