@@ -37,7 +37,7 @@ func Pay(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, error) {
 	}
 
 	botUserID := os.Getenv("MONEYLINE_BOT_ID")
-	
+
 	// 債務者を取得
 	debtorIDs := []string{}
 	seen := make(map[string]bool)
@@ -263,4 +263,46 @@ func History(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, error)
 	}
 
 	return linebot.NewTextMessage(msg), nil
+}
+
+// グループ内取引履歴の最新一件削除
+func OneClear(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, error) {
+	var tx models.Transaction
+	if err := infra.DB.Where("group_id = ?", in.GroupID).Last(&tx).Error; err != nil {
+		return linebot.NewTextMessage("最新の立替一件の取得に失敗しました。"), nil
+	}
+
+	// トランザクションに紐づくTransactionDebtorを削除
+	if err := infra.DB.Where("transaction_id = ?", tx.ID).Delete(&models.TransactionDebtor{}).Error; err != nil {
+		return linebot.NewTextMessage("関連する債務者の削除に失敗しました。"), nil
+	}
+
+	// トランザクション自体を削除
+	if err := infra.DB.Delete(&tx).Error; err != nil {
+		return linebot.NewTextMessage("最新の立替一件の削除に失敗しました。"), nil
+	}
+
+	return linebot.NewTextMessage("最新の立替一件を削除しました。"), nil
+}
+
+// グループ内取引履歴の全削除
+func AllClear(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, error) {
+	var txs []models.Transaction
+	if err := infra.DB.Where("group_id = ?", in.GroupID).Find(&txs).Error; err != nil {
+		return linebot.NewTextMessage("全履歴の取得に失敗しました。"), nil
+	}
+
+	// 各トランザクションに紐づくTransactionDebtorを削除
+	for _, tx := range txs {
+		if err := infra.DB.Where("transaction_id = ?", tx.ID).Delete(&models.TransactionDebtor{}).Error; err != nil {
+			return linebot.NewTextMessage("関連する債務者の削除に失敗しました。"), nil
+		}
+	}
+
+	// トランザクション自体を削除
+	if err := infra.DB.Where("group_id = ?", in.GroupID).Delete(&models.Transaction{}).Error; err != nil {
+		return linebot.NewTextMessage("全履歴の削除に失敗しました。"), nil
+	}
+
+	return linebot.NewTextMessage("全履歴を削除しました。"), nil
 }

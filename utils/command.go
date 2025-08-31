@@ -5,9 +5,11 @@ import (
 )
 
 const (
-	CmdSummary = "summary"
-	CmdHistory = "history"
-	CmdHelp    = "help"
+	CmdSummary   = "summary"
+	CmdHistory   = "history"
+	CmdOneClear  = "one_clear"
+	CmdAllClear  = "all_clear"
+	CmdHelp      = "help"
 )
 
 // 全角→半角、trimする関数
@@ -52,6 +54,10 @@ func DetectCommand(text string) string {
 		return CmdSummary
 	case strings.Contains(t, "履歴"), strings.Contains(t, "りれき"):
 		return CmdHistory
+	case strings.Contains(t, "一件削除"):
+		return CmdOneClear
+	case strings.Contains(t, "全削除"):
+		return CmdAllClear
 	case strings.Contains(t, "使い方"), strings.Contains(t, "ヘルプ"):
 		return CmdHelp
 	// アカウント名に合わせる必要あり、あとで環境変数化 

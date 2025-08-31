@@ -37,6 +37,10 @@ func HandleEvent(ctx context.Context, bot *linebot.Client, in dto.Incoming) (lin
 			return SettleGreedy(bot, in)
 		case utils.CmdHistory:
 			return History(bot, in)
+		case utils.CmdOneClear:
+			return OneClear(bot, in)
+		case utils.CmdAllClear:
+			return AllClear(bot, in)
 		case utils.CmdHelp:
 			return linebot.NewTextMessage(constants.HelpMessage), nil
 		default:
