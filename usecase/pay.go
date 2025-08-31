@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"fmt"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -35,12 +36,14 @@ func Pay(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, error) {
 		return linebot.NewTextMessage("記録に必要な情報が不足しています。"), nil
 	}
 
+	botUserID := os.Getenv("MONEYLINE_BOT_ID")
+	
 	// 債務者を取得
 	debtorIDs := []string{}
 	seen := make(map[string]bool)
 	for i := 1; i < len(in.Mentionees); i++ {
 		userID := in.Mentionees[i].UserID
-		if userID == "Ub6061e6481654240cb2891f72a8fae59" {
+		if userID == botUserID {
 			return linebot.NewTextMessage("文頭にのみマネリンをメンションしてください"), nil
 		}
 		if !seen[userID] {
