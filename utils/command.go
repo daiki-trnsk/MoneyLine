@@ -54,7 +54,8 @@ func DetectCommand(text string) string {
 		return CmdHistory
 	case strings.Contains(t, "使い方"), strings.Contains(t, "ヘルプ"):
 		return CmdHelp
-	case t == "@マネリン|金銭管理Bot":
+	// アカウント名に合わせる必要あり、あとで環境変数化 
+	case t == "@マネリン|立替管理":
 		return CmdHelp
 	}
 	return ""
