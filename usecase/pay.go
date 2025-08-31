@@ -98,9 +98,9 @@ func validateMessageFormat(text string) (int64, string, error) {
 	parts := strings.Fields(text)
 
 	// 文頭に @マネリン が含まれているかチェック
-    if len(parts) == 0 || !strings.HasPrefix(parts[0], "@マネリン") {
-        return 0, "", fmt.Errorf("メッセージ形式が正しくありません。\n\n形式: @マネリン @借りた人(複数可) 金額 メモ \n\n使い方を確認するには私のメンションのみ送信してください。")
-    }
+	if len(parts) == 0 || !strings.HasPrefix(parts[0], "@マネリン") {
+		return 0, "", fmt.Errorf("メッセージ形式が正しくありません。\n\n形式: @マネリン @借りた人(複数可) 金額 メモ \n\n使い方を確認するには私のメンションのみ送信してください。")
+	}
 
 	// 必須要素の数をチェック
 	if len(parts) < 4 {
@@ -189,11 +189,13 @@ func SettleGreedy(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, e
 
 	var b strings.Builder
 	b.WriteString("清算方法\n\n")
-	for _, t := range res {
+	for i, t := range res {
 		from, _ := bot.GetGroupMemberProfile(in.GroupID, t.From).Do()
 		to, _ := bot.GetGroupMemberProfile(in.GroupID, t.To).Do()
-		b.WriteString(fmt.Sprintf("%s → %s \n %s円\n\n",
-			safeName(from), safeName(to), formatYen(t.Amt)))
+		b.WriteString(fmt.Sprintf("%s → %s \n %s円", safeName(from), safeName(to), formatYen(t.Amt)))
+		if i < len(res)-1 {
+			b.WriteString("\n\n")
+		}
 	}
 	return linebot.NewTextMessage(b.String()), nil
 }
