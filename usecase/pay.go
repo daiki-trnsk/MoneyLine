@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"sort"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/line/line-bot-sdk-go/v7/linebot"
+	"gorm.io/gorm"
 
 	"github.com/daiki-trnsk/MoneyLine/dto"
 	"github.com/daiki-trnsk/MoneyLine/infra"
@@ -269,6 +271,9 @@ func History(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, error)
 func OneClear(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, error) {
 	var tx models.Transaction
 	if err := infra.DB.Where("group_id = ?", in.GroupID).Last(&tx).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return linebot.NewTextMessage("取引履歴はありません。"), nil
+		}
 		return linebot.NewTextMessage("最新の立替一件の取得に失敗しました。"), nil
 	}
 
@@ -290,6 +295,10 @@ func AllClear(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, error
 	var txs []models.Transaction
 	if err := infra.DB.Where("group_id = ?", in.GroupID).Find(&txs).Error; err != nil {
 		return linebot.NewTextMessage("全履歴の取得に失敗しました。"), nil
+	}
+
+	if len(txs) == 0 {
+		return linebot.NewTextMessage("取引履歴はありません。"), nil
 	}
 
 	// 各トランザクションに紐づくTransactionDebtorを削除
