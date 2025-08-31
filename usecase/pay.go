@@ -270,7 +270,7 @@ func History(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, error)
 // グループ内取引履歴の最新一件削除
 func OneClear(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, error) {
 	var tx models.Transaction
-	if err := infra.DB.Where("group_id = ?", in.GroupID).Last(&tx).Error; err != nil {
+	if err := infra.DB.Where("group_id = ?", in.GroupID).Order("created_at desc").Last(&tx).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return linebot.NewTextMessage("取引履歴はありません。"), nil
 		}
