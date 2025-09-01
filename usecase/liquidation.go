@@ -11,6 +11,7 @@ import (
 	"github.com/daiki-trnsk/MoneyLine/dto"
 	"github.com/daiki-trnsk/MoneyLine/infra"
 	"github.com/daiki-trnsk/MoneyLine/models"
+	"github.com/daiki-trnsk/MoneyLine/utils"
 )
 
 type transfer struct {
@@ -25,10 +26,10 @@ type node struct {
 }
 
 // 貪欲清算
-func SettleGreedy(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, error) {
+func SettleGreedy(bot *linebot.Client, in dto.Incoming) linebot.SendingMessage {
 	var txs []models.Transaction
 	if err := infra.DB.Where("group_id = ?", in.GroupID).Find(&txs).Error; err != nil {
-		return linebot.NewTextMessage("清算案の作成に失敗しました。"), nil
+		return utils.LogAndReplyError(err, in, "Failed to get transaction")
 	}
 
 	net := make(map[string]int64)
@@ -37,7 +38,7 @@ func SettleGreedy(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, e
 	for _, tx := range txs {
 		var debtors []models.TransactionDebtor
 		if err := infra.DB.Where("transaction_id = ?", tx.ID).Find(&debtors).Error; err != nil {
-			return linebot.NewTextMessage("債務者情報の取得に失敗しました。"), nil
+			return utils.LogAndReplyError(err, in, "Failed to get transaction debtor")
 		}
 
 		// 債務者ごとに金額を均等に分割
@@ -63,7 +64,7 @@ func SettleGreedy(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, e
 		}
 	}
 	if len(creditors) == 0 || len(debtors) == 0 {
-		return linebot.NewTextMessage("清算は不要です。"), nil
+		return linebot.NewTextMessage("清算は不要です。")
 	}
 
 	sort.Slice(creditors, func(i, j int) bool { return creditors[i].amt > creditors[j].amt })
@@ -98,7 +99,7 @@ func SettleGreedy(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, e
 			b.WriteString("\n\n")
 		}
 	}
-	return linebot.NewTextMessage(b.String()), nil
+	return linebot.NewTextMessage(b.String())
 }
 
 func min64(a, b int64) int64 {

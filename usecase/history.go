@@ -13,10 +13,10 @@ import (
 )
 
 // 履歴（グループごとの取引履歴）
-func History(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, error) {
+func History(bot *linebot.Client, in dto.Incoming) linebot.SendingMessage {
 	var txs []models.Transaction
 	if err := infra.DB.Where("group_id = ?", in.GroupID).Order("created_at desc").Find(&txs).Error; err != nil {
-		return linebot.NewTextMessage("履歴取得に失敗しました。"), nil
+		return utils.LogAndReplyError(err, in, "Failed to order transaction")
 	}
 
 	msg := "履歴\n\n"
@@ -26,19 +26,19 @@ func History(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, error)
 
 		creditorProfile, err := bot.GetGroupMemberProfile(in.GroupID, tx.CreditorID).Do()
 		if err != nil {
-			return linebot.NewTextMessage("債権者情報の取得に失敗しました。"), nil
+			return utils.LogAndReplyError(err, in, "Failed to get creditor profile")
 		}
 
 		var debtors []models.TransactionDebtor
 		if err := infra.DB.Where("transaction_id = ?", tx.ID).Find(&debtors).Error; err != nil {
-			return linebot.NewTextMessage("債務者情報の取得に失敗しました。"), nil
+			return utils.LogAndReplyError(err, in, "Failed to get transaction debtor")
 		}
 
 		debtorNames := []string{}
 		for _, debtor := range debtors {
 			debtorProfile, err := bot.GetGroupMemberProfile(in.GroupID, debtor.DebtorID).Do()
 			if err != nil {
-				return linebot.NewTextMessage("債務者情報の取得に失敗しました。"), nil
+				return utils.LogAndReplyError(err, in, "Failed to get debtor profile")
 			}
 			debtorNames = append(debtorNames, "@"+debtorProfile.DisplayName)
 		}
@@ -53,5 +53,5 @@ func History(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, error)
 		msg += "取引履歴はありません。"
 	}
 
-	return linebot.NewTextMessage(msg), nil
+	return linebot.NewTextMessage(msg)
 }

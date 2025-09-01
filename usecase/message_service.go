@@ -13,20 +13,20 @@ import (
 )
 
 // HandleEvent リクエストを解析し各処理呼び出し、返信メッセージ返す
-func HandleEvent(ctx context.Context, bot *linebot.Client, in dto.Incoming) (linebot.SendingMessage, error) {
+func HandleEvent(ctx context.Context, bot *linebot.Client, in dto.Incoming) linebot.SendingMessage {
 	switch in.EventType {
 	case string(linebot.EventTypeJoin):
-		return linebot.NewTextMessage(constants.JoinMessage), nil
+		return linebot.NewTextMessage(constants.JoinMessage)
 	case string(linebot.EventTypeMessage):
 		// グループ以外は処理しない
 		if in.SourceType == "" || in.GroupID == "" {
-			return linebot.NewTextMessage(constants.PrivateChatMessage), nil
+			return linebot.NewTextMessage(constants.PrivateChatMessage)
 		}
 
 		// メンションされていない場合はスキップ
 		botUserID := os.Getenv("MONEYLINE_BOT_ID")
 		if !utils.IsMentioned(in.Mentionees, botUserID) {
-			return nil, nil
+			return nil
 		}
 
 		fmt.Println(in.Text)
@@ -44,10 +44,10 @@ func HandleEvent(ctx context.Context, bot *linebot.Client, in dto.Incoming) (lin
 		case utils.CmdAllClear:
 			return AllClear(bot, in)
 		case utils.CmdHelp:
-			return linebot.NewTextMessage(constants.HelpMessage), nil
+			return linebot.NewTextMessage(constants.HelpMessage)
 		default:
-			return linebot.NewTextMessage(constants.InvalidMessage), nil
+			return linebot.NewTextMessage(constants.InvalidMessage)
 		}
 	}
-	return nil, nil
+	return nil
 }

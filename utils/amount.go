@@ -20,7 +20,7 @@ func toHalfWidth(s string) string {
 	return result.String()
 }
 
-// ParseAmount: 文字列から金額を抽出
+// 文字列から金額を抽出
 func ParseAmount(s string) (int64, error) {
 	s = toHalfWidth(s)
 	// 末尾の「円」や空白を除去
@@ -40,7 +40,7 @@ func ParseAmount(s string) (int64, error) {
 	return value, nil
 }
 
-// FormatAmount: 金額をカンマ区切りで文字列化
+// 金額をカンマ区切りで文字列化
 func FormatAmount(a int64) string {
 	return strconv.FormatInt(a, 10)
 }

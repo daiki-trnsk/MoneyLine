@@ -15,17 +15,17 @@ import (
 )
 
 // 貸し借りを記録
-func Pay(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, error) {
+func Pay(bot *linebot.Client, in dto.Incoming) linebot.SendingMessage {
 	// メッセージのバリデーション
-	amount, note, err := validateMessageFormat(in.Text)
-	if err != nil {
-		return linebot.NewTextMessage(err.Error()), nil
+	amount, note, errValue := validateMessageFormat(in.Text)
+	if errValue != nil {
+		return linebot.NewTextMessage(errValue.Error())
 	}
 
 	// 送信者（債権者）
 	creditorID := in.SenderID
 	if creditorID == "" || len(in.Mentionees) < 2 {
-		return linebot.NewTextMessage("記録に必要な情報が不足しています。"), nil
+		return linebot.NewTextMessage("記録に必要な情報が不足しています。")
 	}
 
 	botUserID := os.Getenv("MONEYLINE_BOT_ID")
@@ -36,7 +36,7 @@ func Pay(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, error) {
 	for i := 1; i < len(in.Mentionees); i++ {
 		userID := in.Mentionees[i].UserID
 		if userID == botUserID {
-			return linebot.NewTextMessage("文頭にのみマネリンをメンションしてください"), nil
+			return linebot.NewTextMessage("文頭にのみマネリンをメンションしてください")
 		}
 		if !seen[userID] {
 			debtorIDs = append(debtorIDs, userID)
@@ -54,7 +54,7 @@ func Pay(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, error) {
 		UpdatedAt:  time.Now(),
 	}
 	if err := infra.DB.Create(&tx).Error; err != nil {
-		return linebot.NewTextMessage("取引の記録に失敗しました。"), nil
+		return utils.LogAndReplyError(err, in, "Failed to create transaction")
 	}
 
 	// 債務者を登録
@@ -64,7 +64,7 @@ func Pay(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, error) {
 			DebtorID:      debtorID,
 		}
 		if err := infra.DB.Create(&txDebtor).Error; err != nil {
-			return linebot.NewTextMessage("債務者の記録に失敗しました。"), nil
+			return utils.LogAndReplyError(err, in, "Failed to create transaction debtor")
 		}
 	}
 
@@ -73,19 +73,19 @@ func Pay(bot *linebot.Client, in dto.Incoming) (*linebot.TextMessage, error) {
 
 	creditorProfile, err := bot.GetGroupMemberProfile(in.GroupID, creditorID).Do()
 	if err != nil {
-		return linebot.NewTextMessage("債権者情報の取得に失敗しました。"), nil
+		return utils.LogAndReplyError(err, in, "Failed to get creditor profile")
 	}
 	msgs += "@" + creditorProfile.DisplayName + "\n↓\n"
 	for _, debtorID := range debtorIDs {
 		debtorProfile, err := bot.GetGroupMemberProfile(in.GroupID, debtorID).Do()
 		if err != nil {
-			return linebot.NewTextMessage("債務者情報の取得に失敗しました。"), nil
+			return utils.LogAndReplyError(err, in, "Failed to get debtor profile")
 		}
 		msgs += "@" + debtorProfile.DisplayName + "\n"
 	}
 	msgs += "\n" + note + "：" + utils.FormatAmount(amount) + "円"
 
-	return linebot.NewTextMessage(msgs), nil
+	return linebot.NewTextMessage(msgs)
 }
 
 // メッセージのバリデーション

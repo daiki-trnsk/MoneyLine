@@ -7,8 +7,8 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/line/line-bot-sdk-go/v7/linebot"
 
-	"github.com/daiki-trnsk/MoneyLine/usecase"
 	"github.com/daiki-trnsk/MoneyLine/dto"
+	"github.com/daiki-trnsk/MoneyLine/usecase"
 	"github.com/daiki-trnsk/MoneyLine/utils"
 )
 
@@ -22,18 +22,17 @@ func WebhookHandler(bot *linebot.Client) echo.HandlerFunc {
 		}
 
 		for _, event := range events {
-			in := dto.ToIncoming(event)
-			reply, err := usecase.HandleEvent(c.Request().Context(), bot, in)
-			if err != nil {
-				log.Printf("Error handling event: %v", err)
-				return c.NoContent(http.StatusOK)
-			}
-			if reply != nil {
-				if _, err := bot.ReplyMessage(in.ReplyToken, reply).Do(); err != nil {
-					log.Printf("Error replying message: %v", err)
-					return c.NoContent(http.StatusOK)
+			if event.Type == linebot.EventTypeMessage {
+				in := dto.ToIncoming(event)
+				reply := usecase.HandleEvent(c.Request().Context(), bot, in)
+				if reply != nil {
+					if _, err := bot.ReplyMessage(in.ReplyToken, reply).Do(); err != nil {
+						log.Printf("Error replying message: %v", err)
+						return c.NoContent(http.StatusOK)
+					}
 				}
 			}
+
 			if event.Type == linebot.EventTypeFollow {
 				subject := "New Friend Added"
 				body := "A new friend has been added to the LINE bot."
