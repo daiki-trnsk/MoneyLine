@@ -32,7 +32,9 @@ func HandleEvent(ctx context.Context, bot *linebot.Client, in dto.Incoming) (lin
 		fmt.Println(in.Text)
 
 		// メッセージ解析、処理分岐
-		switch utils.DetectCommand(in.Text) {
+		switch utils.DetectCommand(in) {
+		case utils.CmdPay:
+			return Pay(bot, in)
 		case utils.CmdSummary:
 			return SettleGreedy(bot, in)
 		case utils.CmdHistory:
@@ -44,10 +46,6 @@ func HandleEvent(ctx context.Context, bot *linebot.Client, in dto.Incoming) (lin
 		case utils.CmdHelp:
 			return linebot.NewTextMessage(constants.HelpMessage), nil
 		default:
-			// マネリン以外のメンション+数字でPay処理
-			if len(in.Mentionees) > 1 && utils.ContainsNumber(in.Text) {
-				return Pay(bot, in)
-			}
 			return linebot.NewTextMessage(constants.InvalidMessage), nil
 		}
 	}

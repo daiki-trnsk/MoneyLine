@@ -2,14 +2,17 @@ package utils
 
 import (
 	"strings"
+
+	"github.com/daiki-trnsk/MoneyLine/dto"
 )
 
 const (
-	CmdSummary   = "summary"
-	CmdHistory   = "history"
-	CmdOneClear  = "one_clear"
-	CmdAllClear  = "all_clear"
-	CmdHelp      = "help"
+	CmdPay      = "pay"
+	CmdSummary  = "summary"
+	CmdHistory  = "history"
+	CmdOneClear = "one_clear"
+	CmdAllClear = "all_clear"
+	CmdHelp     = "help"
 )
 
 // 全角→半角、trimする関数
@@ -45,8 +48,15 @@ func ContainsNumber(text string) bool {
 	return false
 }
 
-func DetectCommand(text string) string {
-	t := norm(text)
+// コマンドを判別
+func DetectCommand(in dto.Incoming) string {
+	// マネリン以外のメンション+数字でPay処理
+	if len(in.Mentionees) > 1 && ContainsNumber(in.Text) {
+		return CmdPay
+	}
+
+	// Pay以外のコマンド判別
+	t := norm(in.Text)
 	switch {
 	case strings.Contains(t, "一覧"):
 		return CmdSummary
@@ -60,7 +70,7 @@ func DetectCommand(text string) string {
 		return CmdAllClear
 	case strings.Contains(t, "使い方"), strings.Contains(t, "ヘルプ"):
 		return CmdHelp
-	// アカウント名に合わせる必要あり、あとで環境変数化 
+	// アカウント名に合わせる必要あり、あとで環境変数化
 	case t == "@マネリン|立替管理":
 		return CmdHelp
 	}
