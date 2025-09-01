@@ -29,8 +29,6 @@ func HandleEvent(ctx context.Context, bot *linebot.Client, in dto.Incoming) line
 			return nil
 		}
 
-		fmt.Println(in.Text)
-
 		// メッセージ解析、処理分岐
 		switch utils.DetectCommand(in) {
 		case utils.CmdPay:
