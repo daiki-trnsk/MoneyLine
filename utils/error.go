@@ -16,9 +16,10 @@ func LogAndReplyError(err error, in dto.Incoming, title string) linebot.SendingM
 	if ok {
 		loc = fmt.Sprintf("%s:%d", file, line)
 	}
-	log.Printf(
-		"[ERROR] %v\n err: %v\n caller: %v\n incoming: %v\n",
+
+	log.Printf("[ERROR] title=%s err=%v caller=%s incoming=%+v",
 		title, err, loc, in,
 	)
+
 	return linebot.NewTextMessage("エラーが発生しました。")
 }
