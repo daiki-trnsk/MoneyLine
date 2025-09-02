@@ -53,9 +53,7 @@ func Pay(bot *linebot.Client, in dto.Incoming) linebot.SendingMessage {
 		CreatedAt:  time.Now(),
 		UpdatedAt:  time.Now(),
 	}
-	err := infra.DB.Create(&tx).Error; 
-	err = fmt.Errorf("疑似エラーテスト")
-	if err != nil {
+	if err := infra.DB.Create(&tx).Error; err != nil {
 		return utils.LogAndReplyError(err, in, "Failed to create transaction")
 	}
 
