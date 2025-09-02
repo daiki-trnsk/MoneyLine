@@ -22,7 +22,7 @@ func AllClear(bot *linebot.Client, in dto.Incoming) linebot.SendingMessage {
 
 	// 各トランザクションに紐づくTransactionDebtorを削除
 	for _, tx := range txs {
-		if err := infra.DB.Where("tra nsaction_id = ?", tx.ID).Delete(&models.TransactionDebtor{}).Error; err != nil {
+		if err := infra.DB.Where("transaction_id = ?", tx.ID).Delete(&models.TransactionDebtor{}).Error; err != nil {
 			return utils.LogAndReplyError(err, in, "Failed to delete related transaction debtor")
 		}
 	}
