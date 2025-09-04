@@ -109,6 +109,11 @@ func validateMessageFormat(text string) (int64, string, error) {
 		return 0, "", fmt.Errorf("メッセージ形式が正しくありません。\n\n形式: @マネリン @借りた人(複数可) 金額 メモ \n\n使い方を確認するには私のメンションのみ送信してください。")
 	}
 
+	 // 金額が0またはマイナスの場合のチェック
+    if amount <= 0 {
+        return 0, "", fmt.Errorf("金額は0より大きい値を入力してください。")
+    }
+
 	// メモを取得
 	note := strings.Join(parts[len(parts)-1:], " ")
 
