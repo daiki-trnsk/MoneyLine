@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"fmt"
+	"log"
 	"sort"
 	"strconv"
 	"strings"
@@ -32,26 +33,60 @@ func SettleGreedy(bot *linebot.Client, in dto.Incoming) linebot.SendingMessage {
 		return utils.LogAndReplyError(err, in, "Failed to get transaction")
 	}
 
+	// txs 空ガード
+	if len(txs) == 0 {
+		return linebot.NewTextMessage("清算は不要です。")
+	}
+
+	// TransactionDebtor を一括取得
+	var allDebtors []models.TransactionDebtor
+	if err := infra.DB.
+		Where("transaction_id IN ?", extractTransactionIDs(txs)).
+		Order("transaction_id, created_at, id").
+		Find(&allDebtors).Error; err != nil {
+		return utils.LogAndReplyError(err, in, "Failed to get transaction debtors")
+	}
+
+	// transaction_id をキーにしたマップを作成
+	debtorMap := make(map[string][]models.TransactionDebtor)
+	for _, debtor := range allDebtors {
+		debtorMap[debtor.TransactionID.String()] = append(debtorMap[debtor.TransactionID.String()], debtor)
+	}
+
 	net := make(map[string]int64)
 
 	// 各取引に紐づく債務者を取得
 	for _, tx := range txs {
-		var debtors []models.TransactionDebtor
-		if err := infra.DB.Where("transaction_id = ?", tx.ID).Find(&debtors).Error; err != nil {
-			return utils.LogAndReplyError(err, in, "Failed to get transaction debtor")
+		// 取引内の Debtor 重複除去（配分前）
+		debtors := debtorMap[tx.ID.String()]
+		uniq := make([]models.TransactionDebtor, 0, len(debtors))
+		seen := make(map[string]struct{})
+		for _, d := range debtors {
+			if _, ok := seen[d.DebtorID]; ok {
+				continue
+			}
+			seen[d.DebtorID] = struct{}{}
+			uniq = append(uniq, d)
 		}
+		debtors = uniq
 
-		// 債務者ごとに金額を均等に分割
 		debtorCount := int64(len(debtors))
 		if debtorCount == 0 {
 			continue
 		}
-		share := tx.Amount / debtorCount
 
-		// 債権者に加算、債務者に減算
+		share := tx.Amount / debtorCount
+		rem := tx.Amount % debtorCount
+
 		net[tx.CreditorID] += tx.Amount
-		for _, debtor := range debtors {
-			net[debtor.DebtorID] -= share
+
+		// 余りを均等に配分
+		for idx, debtor := range debtors {
+			delta := share
+			if int64(idx) < rem {
+				delta++
+			}
+			net[debtor.DebtorID] -= delta
 		}
 	}
 
@@ -69,6 +104,18 @@ func SettleGreedy(bot *linebot.Client, in dto.Incoming) linebot.SendingMessage {
 
 	sort.Slice(creditors, func(i, j int) bool { return creditors[i].amt > creditors[j].amt })
 	sort.Slice(debtors, func(i, j int) bool { return debtors[i].amt > debtors[j].amt })
+
+	// 検算
+	var sumPos, sumNeg int64
+	for _, c := range creditors {
+		sumPos += c.amt
+	}
+	for _, d := range debtors {
+		sumNeg += d.amt
+	}
+	if sumPos != sumNeg {
+		return utils.LogAndReplyError(fmt.Errorf("internal imbalance: creditors=%d, debtors=%d", sumPos, sumNeg), in, "Internal imbalance detected")
+	}
 
 	var res []transfer
 	i, j := 0, 0
@@ -89,17 +136,41 @@ func SettleGreedy(bot *linebot.Client, in dto.Incoming) linebot.SendingMessage {
 		}
 	}
 
+	// プロフィールキャッシュ
+	profileCache := make(map[string]string)
 	var b strings.Builder
 	b.WriteString("清算方法\n\n")
 	for i, t := range res {
-		from, _ := bot.GetGroupMemberProfile(in.GroupID, t.From).Do()
-		to, _ := bot.GetGroupMemberProfile(in.GroupID, t.To).Do()
-		b.WriteString(fmt.Sprintf("%s → %s \n %s円", safeName(from), safeName(to), formatYen(t.Amt)))
+		fromName := getCachedProfileName(bot, in.GroupID, t.From, profileCache)
+		toName := getCachedProfileName(bot, in.GroupID, t.To, profileCache)
+		b.WriteString(fmt.Sprintf("%s → %s \n %s円", fromName, toName, formatYen(t.Amt)))
 		if i < len(res)-1 {
 			b.WriteString("\n\n")
 		}
 	}
 	return linebot.NewTextMessage(b.String())
+}
+
+func extractTransactionIDs(txs []models.Transaction) []string {
+	ids := make([]string, len(txs))
+	for i, tx := range txs {
+		ids[i] = tx.ID.String()
+	}
+	return ids
+}
+
+func getCachedProfileName(bot *linebot.Client, groupID, userID string, cache map[string]string) string {
+	if name, exists := cache[userID]; exists {
+		return name
+	}
+	profile, err := bot.GetGroupMemberProfile(groupID, userID).Do()
+	if err != nil {
+		log.Println(err, "Failed to get profile for user: "+userID)
+		return "@" + userID
+	}
+	name := safeName(profile)
+	cache[userID] = name
+	return name
 }
 
 func min64(a, b int64) int64 {
@@ -117,5 +188,19 @@ func safeName(p *linebot.UserProfileResponse) string {
 }
 
 func formatYen(v int64) string {
-	return strconv.FormatInt(v, 10)
+	s := strconv.FormatInt(v, 10)
+	n := len(s)
+	if n <= 3 {
+		return s
+	}
+	var b strings.Builder
+	pre := n % 3
+	if pre == 0 {
+		pre = 3
+	}
+	b.WriteString(s[:pre])
+	for i := pre; i < n; i += 3 {
+		b.WriteString("," + s[i:i+3])
+	}
+	return b.String()
 }
