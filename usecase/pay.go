@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/line/line-bot-sdk-go/v7/linebot"
+	"gorm.io/gorm"
 
 	"github.com/daiki-trnsk/MoneyLine/dto"
 	"github.com/daiki-trnsk/MoneyLine/infra"
@@ -44,31 +44,32 @@ func Pay(bot *linebot.Client, in dto.Incoming) linebot.SendingMessage {
 		}
 	}
 
-	// 取引を作成
-	tx := models.Transaction{
-		CreditorID: creditorID,
-		GroupID:    in.GroupID,
-		Amount:     amount,
-		Note:       note,
-		CreatedAt:  time.Now(),
-		UpdatedAt:  time.Now(),
-	}
-	if err := infra.DB.Create(&tx).Error; err != nil {
-		return utils.LogAndReplyError(err, in, "Failed to create transaction")
+	// トランザクション処理
+	if err := infra.DB.Transaction(func(tx *gorm.DB) error {
+		transaction := models.Transaction{
+			CreditorID: creditorID,
+			GroupID:    in.GroupID,
+			Amount:     amount,
+			Note:       note,
+		}
+		if err := tx.Create(&transaction).Error; err != nil {
+			return fmt.Errorf("failed to create transaction: %w", err)
+		}
+
+		for _, debtorID := range debtorIDs {
+			txDebtor := models.TransactionDebtor{
+				TransactionID: transaction.ID,
+				DebtorID:      debtorID,
+			}
+			if err := tx.Create(&txDebtor).Error; err != nil {
+				return fmt.Errorf("failed to create transaction debtor: %w", err)
+			}
+		}
+		return nil
+	}); err != nil {
+		return utils.LogAndReplyError(err, in, "Transaction failed")
 	}
 
-	// 債務者を登録
-	for _, debtorID := range debtorIDs {
-		txDebtor := models.TransactionDebtor{
-			TransactionID: tx.ID,
-			DebtorID:      debtorID,
-		}
-		if err := infra.DB.Create(&txDebtor).Error; err != nil {
-			return utils.LogAndReplyError(err, in, "Failed to create transaction debtor")
-		}
-	}
-
-	// メッセージ作成
 	msgs := "記録しました！\n\n"
 
 	creditorProfile, err := bot.GetGroupMemberProfile(in.GroupID, creditorID).Do()

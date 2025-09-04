@@ -22,12 +22,7 @@ func OneClear(bot *linebot.Client, in dto.Incoming) linebot.SendingMessage {
 		return utils.LogAndReplyError(err, in, "Failed to order transaction")
 	}
 
-	// トランザクションに紐づくTransactionDebtorを削除
-	if err := infra.DB.Where("transaction_id = ?", tx.ID).Delete(&models.TransactionDebtor{}).Error; err != nil {
-		return utils.LogAndReplyError(err, in, "Failed to delete related transaction debtor")
-	}
-
-	// トランザクション自体を削除
+	// TransactionDebtorもカスケード削除される
 	if err := infra.DB.Delete(&tx).Error; err != nil {
 		return utils.LogAndReplyError(err, in, "Failed to delete transaction")
 	}

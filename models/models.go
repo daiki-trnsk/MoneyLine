@@ -10,21 +10,22 @@ import (
 // 一旦最小構成のみ
 type Transaction struct {
 	ID         uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
-	CreditorID string    `gorm:"index"` // 債権者 LINE ID
-	GroupID    string    `gorm:"index"` // グループ LINE ID
+	CreditorID string    `gorm:"index"`
+	GroupID    string    `gorm:"index"`
 	Amount     int64
 	Note       string
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
+	CreatedAt  time.Time `gorm:"autoCreateTime"`
+	UpdatedAt  time.Time `gorm:"autoUpdateTime"`
 }
 
 type TransactionDebtor struct {
-	ID              uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
-	TransactionID   uuid.UUID  `gorm:"index"`
-	DebtorID        string     `gorm:"index"`
+	ID            uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
+	TransactionID uuid.UUID `gorm:"index;not null;constraint:OnDelete:CASCADE"`
+	DebtorID      string    `gorm:"index"`
+	CreatedAt     time.Time `gorm:"autoCreateTime"`
+	UpdatedAt     time.Time `gorm:"autoUpdateTime"`
 }
 
-// DB接続例（main.goで利用する想定）
 func AutoMigrate(db *gorm.DB) error {
 	return db.AutoMigrate(&Transaction{}, &TransactionDebtor{})
 }

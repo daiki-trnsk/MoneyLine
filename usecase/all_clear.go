@@ -20,14 +20,7 @@ func AllClear(bot *linebot.Client, in dto.Incoming) linebot.SendingMessage {
 		return linebot.NewTextMessage("取引履歴はありません。")
 	}
 
-	// 各トランザクションに紐づくTransactionDebtorを削除
-	for _, tx := range txs {
-		if err := infra.DB.Where("transaction_id = ?", tx.ID).Delete(&models.TransactionDebtor{}).Error; err != nil {
-			return utils.LogAndReplyError(err, in, "Failed to delete related transaction debtor")
-		}
-	}
-
-	// トランザクション自体を削除
+	// TransactionDebtorもカスケード削除される
 	if err := infra.DB.Where("group_id = ?", in.GroupID).Delete(&models.Transaction{}).Error; err != nil {
 		return utils.LogAndReplyError(err, in, "Failed to delete all transactions")
 	}
