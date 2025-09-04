@@ -16,14 +16,18 @@ type Transaction struct {
 	Note       string
 	CreatedAt  time.Time `gorm:"autoCreateTime"`
 	UpdatedAt  time.Time `gorm:"autoUpdateTime"`
+
+    Debtors []TransactionDebtor  `gorm:"constraint:OnDelete:CASCADE;"`
 }
 
 type TransactionDebtor struct {
 	ID            uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
-	TransactionID uuid.UUID `gorm:"index;not null;constraint:OnDelete:CASCADE"`
+	TransactionID uuid.UUID `gorm:"index;"`
 	DebtorID      string    `gorm:"index"`
 	CreatedAt     time.Time `gorm:"autoCreateTime"`
 	UpdatedAt     time.Time `gorm:"autoUpdateTime"`
+
+    Transaction Transaction `gorm:"foreignKey:TransactionID;references:ID"`
 }
 
 func AutoMigrate(db *gorm.DB) error {
