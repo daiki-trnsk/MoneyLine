@@ -2,7 +2,6 @@ package usecase
 
 import (
 	"fmt"
-	"log"
 	"sort"
 	"strconv"
 	"strings"
@@ -61,8 +60,8 @@ func SettleGreedy(bot *linebot.Client, in dto.Incoming) linebot.SendingMessage {
 	var b strings.Builder
 	b.WriteString("清算方法\n\n")
 	for i, t := range res {
-		fromName := getCachedProfileName(bot, in.GroupID, t.From, profileCache)
-		toName := getCachedProfileName(bot, in.GroupID, t.To, profileCache)
+		fromName := utils.GetCachedProfileName(bot, in.GroupID, t.From, profileCache)
+		toName := utils.GetCachedProfileName(bot, in.GroupID, t.To, profileCache)
 		b.WriteString(fmt.Sprintf("%s → %s \n %s円", fromName, toName, formatYen(t.Amt)))
 		if i < len(res)-1 {
 			b.WriteString("\n\n")
@@ -173,32 +172,11 @@ func extractTransactionIDs(txs []models.Transaction) []string {
 	return ids
 }
 
-func getCachedProfileName(bot *linebot.Client, groupID, userID string, cache map[string]string) string {
-	if name, exists := cache[userID]; exists {
-		return name
-	}
-	profile, err := bot.GetGroupMemberProfile(groupID, userID).Do()
-	if err != nil {
-		log.Println(err, "Failed to get profile for user: "+userID)
-		return "@不明"
-	}
-	name := safeName(profile)
-	cache[userID] = name
-	return name
-}
-
 func min64(a, b int64) int64 {
 	if a < b {
 		return a
 	}
 	return b
-}
-
-func safeName(p *linebot.UserProfileResponse) string {
-	if p == nil {
-		return "（不明）"
-	}
-	return "@" + p.DisplayName
 }
 
 func formatYen(v int64) string {

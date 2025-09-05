@@ -21,13 +21,14 @@ func History(bot *linebot.Client, in dto.Incoming) linebot.SendingMessage {
 
 	msg := "履歴\n\n"
 
+	// プロフィールキャッシュを初期化
+	profileCache := make(map[string]string)
+
 	for _, tx := range txs {
 		date := tx.CreatedAt.Format("2006/01/02")
 
-		creditorProfile, err := bot.GetGroupMemberProfile(in.GroupID, tx.CreditorID).Do()
-		if err != nil {
-			return utils.LogAndReplyError(err, in, "Failed to get creditor profile")
-		}
+		// 債権者のプロフィールをキャッシュ経由で取得
+		creditorName := utils.GetCachedProfileName(bot, in.GroupID, tx.CreditorID, profileCache)
 
 		var debtors []models.TransactionDebtor
 		if err := infra.DB.Where("transaction_id = ?", tx.ID).Find(&debtors).Error; err != nil {
@@ -36,15 +37,13 @@ func History(bot *linebot.Client, in dto.Incoming) linebot.SendingMessage {
 
 		debtorNames := []string{}
 		for _, debtor := range debtors {
-			debtorProfile, err := bot.GetGroupMemberProfile(in.GroupID, debtor.DebtorID).Do()
-			if err != nil {
-				return utils.LogAndReplyError(err, in, "Failed to get debtor profile")
-			}
-			debtorNames = append(debtorNames, "@"+debtorProfile.DisplayName)
+			// 債務者のプロフィールをキャッシュ経由で取得
+			debtorName := utils.GetCachedProfileName(bot, in.GroupID, debtor.DebtorID, profileCache)
+			debtorNames = append(debtorNames, debtorName)
 		}
 
 		msg += fmt.Sprintf("📌【%s】\n", date)
-		msg += fmt.Sprintf("@%s\n↓\n", creditorProfile.DisplayName)
+		msg += fmt.Sprintf("%s\n↓\n", creditorName)
 		msg += strings.Join(debtorNames, "\n") + "\n"
 		msg += fmt.Sprintf("%s：%s円\n\n", tx.Note, utils.FormatAmount(tx.Amount))
 	}
