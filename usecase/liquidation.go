@@ -180,7 +180,7 @@ func getCachedProfileName(bot *linebot.Client, groupID, userID string, cache map
 	profile, err := bot.GetGroupMemberProfile(groupID, userID).Do()
 	if err != nil {
 		log.Println(err, "Failed to get profile for user: "+userID)
-		return "@" + userID
+		return "@不明"
 	}
 	name := safeName(profile)
 	cache[userID] = name
