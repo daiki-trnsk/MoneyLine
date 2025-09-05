@@ -26,7 +26,7 @@ type node struct {
 	amt int64
 }
 
-// 貪欲清算
+// 清算処理
 func SettleGreedy(bot *linebot.Client, in dto.Incoming) linebot.SendingMessage {
 	var txs []models.Transaction
 	if err := infra.DB.Where("group_id = ?", in.GroupID).Find(&txs).Error; err != nil {
@@ -47,6 +47,32 @@ func SettleGreedy(bot *linebot.Client, in dto.Incoming) linebot.SendingMessage {
 		return utils.LogAndReplyError(err, in, "Failed to get transaction debtors")
 	}
 
+	// 清算ロジック
+	res, err := CalculateSettlement(txs, allDebtors)
+	if err != nil {
+		return utils.LogAndReplyError(err, in, "Settlement calculation failed")
+	}
+	if res == nil {
+		return linebot.NewTextMessage("清算は不要です。")
+	}
+
+	// プロフィールキャッシュ
+	profileCache := make(map[string]string)
+	var b strings.Builder
+	b.WriteString("清算方法\n\n")
+	for i, t := range res {
+		fromName := getCachedProfileName(bot, in.GroupID, t.From, profileCache)
+		toName := getCachedProfileName(bot, in.GroupID, t.To, profileCache)
+		b.WriteString(fmt.Sprintf("%s → %s \n %s円", fromName, toName, formatYen(t.Amt)))
+		if i < len(res)-1 {
+			b.WriteString("\n\n")
+		}
+	}
+	return linebot.NewTextMessage(b.String())
+}
+
+// 清算ロジック純粋関数
+func CalculateSettlement(txs []models.Transaction, allDebtors []models.TransactionDebtor) ([]transfer, error) {
 	// transaction_id をキーにしたマップを作成
 	debtorMap := make(map[string][]models.TransactionDebtor)
 	for _, debtor := range allDebtors {
@@ -99,7 +125,7 @@ func SettleGreedy(bot *linebot.Client, in dto.Incoming) linebot.SendingMessage {
 		}
 	}
 	if len(creditors) == 0 || len(debtors) == 0 {
-		return linebot.NewTextMessage("清算は不要です。")
+		return nil, nil // 清算不要
 	}
 
 	sort.Slice(creditors, func(i, j int) bool { return creditors[i].amt > creditors[j].amt })
@@ -114,7 +140,7 @@ func SettleGreedy(bot *linebot.Client, in dto.Incoming) linebot.SendingMessage {
 		sumNeg += d.amt
 	}
 	if sumPos != sumNeg {
-		return utils.LogAndReplyError(fmt.Errorf("internal imbalance: creditors=%d, debtors=%d", sumPos, sumNeg), in, "Internal imbalance detected")
+		return nil, fmt.Errorf("internal imbalance: creditors=%d, debtors=%d", sumPos, sumNeg)
 	}
 
 	var res []transfer
@@ -136,19 +162,7 @@ func SettleGreedy(bot *linebot.Client, in dto.Incoming) linebot.SendingMessage {
 		}
 	}
 
-	// プロフィールキャッシュ
-	profileCache := make(map[string]string)
-	var b strings.Builder
-	b.WriteString("清算方法\n\n")
-	for i, t := range res {
-		fromName := getCachedProfileName(bot, in.GroupID, t.From, profileCache)
-		toName := getCachedProfileName(bot, in.GroupID, t.To, profileCache)
-		b.WriteString(fmt.Sprintf("%s → %s \n %s円", fromName, toName, formatYen(t.Amt)))
-		if i < len(res)-1 {
-			b.WriteString("\n\n")
-		}
-	}
-	return linebot.NewTextMessage(b.String())
+	return res, nil
 }
 
 func extractTransactionIDs(txs []models.Transaction) []string {
