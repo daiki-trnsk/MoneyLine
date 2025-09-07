@@ -3,7 +3,6 @@ package usecase
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/line/line-bot-sdk-go/v7/linebot"
@@ -15,14 +14,12 @@ import (
 
 // HandleEvent リクエストを解析し各処理呼び出し、返信メッセージ返す
 func HandleEvent(ctx context.Context, bot *linebot.Client, in dto.Incoming) linebot.SendingMessage {
-	fmt.Println("HandleEvent called with EventType:", in.EventType)
 	switch in.EventType {
 		// グループ参加
 	case string(linebot.EventTypeJoin):
 		return HandleJoinEvent(ctx, bot, in.GroupID)
 		// グループ退会
 	case string(linebot.EventTypeLeave):
-		log.Printf("Group leave detected. GroupID: %s", in.GroupID)
 		HandleLeaveEvent(ctx, in.GroupID)
 		return nil
 	case string(linebot.EventTypeMessage):

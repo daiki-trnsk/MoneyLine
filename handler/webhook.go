@@ -22,7 +22,7 @@ func WebhookHandler(bot *linebot.Client) echo.HandlerFunc {
 		}
 
 		for _, event := range events {
-			if event.Type == linebot.EventTypeMessage || event.Type == linebot.EventTypeJoin {
+			if event.Type == linebot.EventTypeMessage || event.Type == linebot.EventTypeJoin || event.Type == linebot.EventTypeLeave {
 				in := dto.ToIncoming(event)
 				reply := usecase.HandleEvent(c.Request().Context(), bot, in)
 				if reply != nil {
