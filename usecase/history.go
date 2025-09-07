@@ -19,6 +19,23 @@ func History(bot *linebot.Client, in dto.Incoming) linebot.SendingMessage {
 		return utils.LogAndReplyError(err, in, "Failed to order transaction")
 	}
 
+	txIDs := make([]string, len(txs))
+	for i, tx := range txs {
+		txIDs[i] = tx.ID.String()
+	}
+
+	var allDebtors []models.TransactionDebtor
+	if len(txIDs) > 0 {
+		if err := infra.DB.Where("transaction_id IN ?", txIDs).Find(&allDebtors).Error; err != nil {
+			return utils.LogAndReplyError(err, in, "Failed to get transaction debtors")
+		}
+	}
+
+	debtorMap := make(map[string][]models.TransactionDebtor)
+	for _, debtor := range allDebtors {
+		debtorMap[debtor.TransactionID.String()] = append(debtorMap[debtor.TransactionID.String()], debtor)
+	}
+
 	msg := "履歴\n\n"
 
 	profileCache := make(map[string]string)
@@ -28,10 +45,7 @@ func History(bot *linebot.Client, in dto.Incoming) linebot.SendingMessage {
 
 		creditorName := utils.GetCachedProfileName(bot, in.GroupID, tx.CreditorID, profileCache)
 
-		var debtors []models.TransactionDebtor
-		if err := infra.DB.Where("transaction_id = ?", tx.ID).Find(&debtors).Error; err != nil {
-			return utils.LogAndReplyError(err, in, "Failed to get transaction debtor")
-		}
+		debtors := debtorMap[tx.ID.String()]
 
 		debtorNames := []string{}
 		for _, debtor := range debtors {

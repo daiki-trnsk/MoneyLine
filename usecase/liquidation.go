@@ -39,11 +39,14 @@ func SettleGreedy(bot *linebot.Client, in dto.Incoming) linebot.SendingMessage {
 
 	// TransactionDebtor を一括取得
 	var allDebtors []models.TransactionDebtor
-	if err := infra.DB.
-		Where("transaction_id IN ?", extractTransactionIDs(txs)).
-		Order("transaction_id, created_at, id").
-		Find(&allDebtors).Error; err != nil {
-		return utils.LogAndReplyError(err, in, "Failed to get transaction debtors")
+	txIDs := extractTransactionIDs(txs)
+	if len(txIDs) > 0 {
+		if err := infra.DB.
+			Where("transaction_id IN ?", txIDs).
+			Order("transaction_id, created_at, id").
+			Find(&allDebtors).Error; err != nil {
+			return utils.LogAndReplyError(err, in, "Failed to get transaction debtors")
+		}
 	}
 
 	// 清算ロジック
