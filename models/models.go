@@ -30,6 +30,14 @@ type TransactionDebtor struct {
     Transaction Transaction `gorm:"foreignKey:TransactionID;references:ID"`
 }
 
+type JoinGroup struct {
+	ID        uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
+	GroupID   string    `gorm:"index;unique"`
+	Number   int64
+	CreatedAt time.Time `gorm:"autoCreateTime"`
+	UpdatedAt time.Time `gorm:"autoUpdateTime"`
+}
+
 func AutoMigrate(db *gorm.DB) error {
-	return db.AutoMigrate(&Transaction{}, &TransactionDebtor{})
+	return db.AutoMigrate(&Transaction{}, &TransactionDebtor{}, &JoinGroup{})
 }
