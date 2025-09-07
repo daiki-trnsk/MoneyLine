@@ -15,19 +15,17 @@ import (
 // 履歴（グループごとの取引履歴）
 func History(bot *linebot.Client, in dto.Incoming) linebot.SendingMessage {
 	var txs []models.Transaction
-	if err := infra.DB.Where("group_id = ?", in.GroupID).Order("created_at desc").Find(&txs).Error; err != nil {
+	if err := infra.DB.Where("group_id = ?", in.GroupID).Order("created_at asc").Find(&txs).Error; err != nil {
 		return utils.LogAndReplyError(err, in, "Failed to order transaction")
 	}
 
 	msg := "履歴\n\n"
 
-	// プロフィールキャッシュを初期化
 	profileCache := make(map[string]string)
 
 	for _, tx := range txs {
 		date := tx.CreatedAt.Format("2006/01/02")
 
-		// 債権者のプロフィールをキャッシュ経由で取得
 		creditorName := utils.GetCachedProfileName(bot, in.GroupID, tx.CreditorID, profileCache)
 
 		var debtors []models.TransactionDebtor
@@ -37,7 +35,6 @@ func History(bot *linebot.Client, in dto.Incoming) linebot.SendingMessage {
 
 		debtorNames := []string{}
 		for _, debtor := range debtors {
-			// 債務者のプロフィールをキャッシュ経由で取得
 			debtorName := utils.GetCachedProfileName(bot, in.GroupID, debtor.DebtorID, profileCache)
 			debtorNames = append(debtorNames, debtorName)
 		}
