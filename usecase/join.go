@@ -6,9 +6,10 @@ import (
 	"log"
 	"time"
 
+	"github.com/daiki-trnsk/MoneyLine/constants"
+	"github.com/daiki-trnsk/MoneyLine/infra"
 	"github.com/daiki-trnsk/MoneyLine/models"
 	"github.com/daiki-trnsk/MoneyLine/utils"
-	"github.com/daiki-trnsk/MoneyLine/infra"
 
 	"github.com/google/uuid"
 	"github.com/line/line-bot-sdk-go/v7/linebot"
@@ -31,7 +32,7 @@ func HandleJoinEvent(ctx context.Context, bot *linebot.Client, groupID string) l
 	}
 	if err := infra.DB.Create(&joinGroup).Error; err != nil {
 		log.Printf("Error saving group info: %v", err)
-		return linebot.NewTextMessage("グループ情報の保存に失敗しました。")
+		return linebot.NewTextMessage(constants.JoinMessage)
 	}
 
 	subject := "New Group Joined"
