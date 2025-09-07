@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/line/line-bot-sdk-go/v7/linebot"
@@ -16,6 +17,11 @@ import (
 func HandleEvent(ctx context.Context, bot *linebot.Client, in dto.Incoming) linebot.SendingMessage {
 	switch in.EventType {
 	case string(linebot.EventTypeJoin):
+		subject := "New Group Joined"
+		body := "A new group has added the LINE bot."
+		if err := utils.SendEmail(subject, body); err != nil {
+			log.Printf("Error sending notification email: %v", err)
+		}
 		return linebot.NewTextMessage(constants.JoinMessage)
 	case string(linebot.EventTypeMessage):
 		// グループ以外は処理しない
