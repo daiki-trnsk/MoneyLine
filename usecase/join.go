@@ -31,8 +31,7 @@ func HandleJoinEvent(ctx context.Context, bot *linebot.Client, groupID string) l
 		UpdatedAt: time.Now(),
 	}
 	if err := infra.DB.Create(&joinGroup).Error; err != nil {
-		log.Printf("Error saving group info: %v", err)
-		return linebot.NewTextMessage(constants.JoinMessage)
+		log.Printf("[ERROR] saving group info: %v", err)
 	}
 
 	subject := "New Group Joined"
@@ -41,12 +40,12 @@ func HandleJoinEvent(ctx context.Context, bot *linebot.Client, groupID string) l
 		log.Printf("Error sending notification email: %v", err)
 	}
 
-	return linebot.NewTextMessage(fmt.Sprintf("グループに追加されました！現在のメンバー数は %d 人です。", res.Count))
+	return linebot.NewTextMessage(constants.JoinMessage)
 }
 
 // HandleLeaveEvent グループ退会時の処理
 func HandleLeaveEvent(ctx context.Context, groupID string) {
 	if err := infra.DB.Where("group_id = ?", groupID).Delete(&models.JoinGroup{}).Error; err != nil {
-		log.Printf("Error deleting group info: %v", err)
+		log.Printf("[ERROR] deleting group info: %v", err)
 	}
 }
