@@ -14,7 +14,6 @@ import (
 
 // HandleEvent リクエストを解析し各処理呼び出し、返信メッセージ返す
 func HandleEvent(ctx context.Context, bot *linebot.Client, in dto.Incoming) linebot.SendingMessage {
-	fmt.Printf("EventType: %s\n", in.EventType)
 	switch in.EventType {
 	case string(linebot.EventTypeJoin):
 		return linebot.NewTextMessage(constants.JoinMessage)
