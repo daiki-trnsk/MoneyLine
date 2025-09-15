@@ -45,7 +45,9 @@ func HandleJoinEvent(ctx context.Context, bot *linebot.Client, groupID string) l
 
 // HandleLeaveEvent グループ退会時の処理
 func HandleLeaveEvent(ctx context.Context, groupID string) {
-	if err := infra.DB.Where("group_id = ?", groupID).Delete(&models.JoinGroup{}).Error; err != nil {
-		log.Printf("[ERROR] deleting group info: %v", err)
+	if err := infra.DB.Model(&models.JoinGroup{}).
+		Where("group_id = ?", groupID).
+		Update("is_now_in", false).Error; err != nil {
+		log.Printf("[ERROR] updating group info: %v", err)
 	}
 }

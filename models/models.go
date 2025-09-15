@@ -17,7 +17,7 @@ type Transaction struct {
 	CreatedAt  time.Time `gorm:"autoCreateTime"`
 	UpdatedAt  time.Time `gorm:"autoUpdateTime"`
 
-    Debtors []TransactionDebtor  `gorm:"constraint:OnDelete:CASCADE;"`
+	Debtors []TransactionDebtor `gorm:"constraint:OnDelete:CASCADE;"`
 }
 
 type TransactionDebtor struct {
@@ -27,13 +27,14 @@ type TransactionDebtor struct {
 	CreatedAt     time.Time `gorm:"autoCreateTime"`
 	UpdatedAt     time.Time `gorm:"autoUpdateTime"`
 
-    Transaction Transaction `gorm:"foreignKey:TransactionID;references:ID"`
+	Transaction Transaction `gorm:"foreignKey:TransactionID;references:ID"`
 }
 
 type JoinGroup struct {
 	ID        uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
 	GroupID   string    `gorm:"index;unique"`
-	Number   int64
+	Number    int64
+	IsNowIn   bool      `gorm:"default:true"`
 	CreatedAt time.Time `gorm:"autoCreateTime"`
 	UpdatedAt time.Time `gorm:"autoUpdateTime"`
 }
