@@ -13,6 +13,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/line/line-bot-sdk-go/v7/linebot"
+	"gorm.io/gorm"
 )
 
 // HandleJoinEvent グループ参加時の処理
@@ -23,15 +24,36 @@ func HandleJoinEvent(ctx context.Context, bot *linebot.Client, groupID string) l
 		return linebot.NewTextMessage("グループ情報の取得に失敗しました。")
 	}
 
-	joinGroup := models.JoinGroup{
-		ID:        uuid.New(),
-		GroupID:   groupID,
-		Number:    int64(res.Count),
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
-	}
-	if err := infra.DB.Create(&joinGroup).Error; err != nil {
-		log.Printf("[ERROR] saving group info: %v", err)
+	// 既存のレコードを確認
+	var joinGroup models.JoinGroup
+	if err := infra.DB.Where("group_id = ?", groupID).First(&joinGroup).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			// レコードが存在しない場合、新規作成
+			joinGroup = models.JoinGroup{
+				ID:        uuid.New(),
+				GroupID:   groupID,
+				Number:    int64(res.Count),
+				IsNowIn:   true,
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			}
+			if err := infra.DB.Create(&joinGroup).Error; err != nil {
+				log.Printf("[ERROR] saving group info: %v", err)
+			}
+		} else {
+			// その他のエラー
+			log.Printf("[ERROR] fetching group info: %v", err)
+			return linebot.NewTextMessage("グループ情報の取得に失敗しました。")
+		}
+	} else {
+		// レコードが存在する場合、更新
+		if err := infra.DB.Model(&joinGroup).Updates(models.JoinGroup{
+			Number:    int64(res.Count),
+			IsNowIn:   true,
+			UpdatedAt: time.Now(),
+		}).Error; err != nil {
+			log.Printf("[ERROR] updating group info: %v", err)
+		}
 	}
 
 	subject := "New Group Joined"
