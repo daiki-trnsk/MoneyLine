@@ -17,7 +17,7 @@ func HandleEvent(ctx context.Context, bot *linebot.Client, in dto.Incoming) line
 	switch in.EventType {
 		// グループ参加
 	case string(linebot.EventTypeJoin):
-		return HandleJoinEvent(ctx, bot, in.GroupID)
+		return HandleJoinEvent(ctx, bot, in.GroupID, in.SenderID)
 		// グループ退会
 	case string(linebot.EventTypeLeave):
 		HandleLeaveEvent(ctx, in.GroupID)

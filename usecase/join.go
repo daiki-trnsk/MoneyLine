@@ -17,7 +17,7 @@ import (
 )
 
 // HandleJoinEvent グループ参加時の処理
-func HandleJoinEvent(ctx context.Context, bot *linebot.Client, groupID string) linebot.SendingMessage {
+func HandleJoinEvent(ctx context.Context, bot *linebot.Client, groupID string, userID string) linebot.SendingMessage {
 	res, err := bot.GetGroupMemberCount(groupID).Do()
 	if err != nil {
 		log.Printf("Error fetching group members count: %v", err)
@@ -57,7 +57,9 @@ func HandleJoinEvent(ctx context.Context, bot *linebot.Client, groupID string) l
 	}
 
 	subject := "New Group Joined"
-	body := fmt.Sprintf("A new group (ID: %s) has added the LINE bot. Members: %d", groupID, res.Count)
+	cache := make(map[string]string)
+	displayName := utils.GetCachedProfileName(bot, "", userID, cache)
+	body := fmt.Sprintf("A new group (ID: %s) has added the LINE bot by %s. Members: %d", groupID, displayName, res.Count)
 	if err := utils.SendEmail(subject, body); err != nil {
 		log.Printf("Error sending notification email: %v", err)
 	}
