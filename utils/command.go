@@ -71,7 +71,7 @@ func DetectCommand(in dto.Incoming) string {
 	case strings.Contains(t, "使い方"), strings.Contains(t, "ヘルプ"):
 		return CmdHelp
 	// アカウント名に合わせる必要あり、あとで環境変数化
-	case t == "@マネリン|立替管理":
+	case t == "@マネリン":
 		return CmdHelp
 	}
 	return ""
