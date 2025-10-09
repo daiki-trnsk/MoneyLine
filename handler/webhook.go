@@ -35,9 +35,14 @@ func WebhookHandler(bot *linebot.Client) echo.HandlerFunc {
 
 			if event.Type == linebot.EventTypeFollow {
 				subject := "New Friend Added"
-				cache := make(map[string]string)
-				displayName := utils.GetCachedProfileName(bot, "", event.Source.UserID, cache)
-				body := "A new friend has been added to the LINE bot." + displayName
+				profile, err := bot.GetProfile(event.Source.UserID).Do()
+				if err != nil {
+					log.Printf("Error fetching user profile: %v", err)
+					return c.NoContent(http.StatusOK)
+				}
+
+				displayName := profile.DisplayName
+				body := "A new friend has been added to the LINE bot: " + displayName
 				if err := utils.SendEmail(subject, body); err != nil {
 					log.Printf("Error sending notification email: %v", err)
 				}
