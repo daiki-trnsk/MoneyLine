@@ -60,6 +60,7 @@ func HandleJoinEvent(ctx context.Context, bot *linebot.Client, groupID string, u
 	displayName := "@不明"
 
 	// グループIDが有効か確認
+	fmt.Println("Group ID:", groupID, "User ID:", userID)
 	if groupID != "" {
 		// グループ内のメンバーとしてプロフィールを取得
 		profile, err := bot.GetGroupMemberProfile(groupID, userID).Do()
