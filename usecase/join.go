@@ -58,12 +58,24 @@ func HandleJoinEvent(ctx context.Context, bot *linebot.Client, groupID string, u
 
 	subject := "New Group Joined"
 	displayName := "@不明"
-	// 個人プロフィールを取得
-	profile, err := bot.GetGroupMemberProfile(groupID,userID).Do()
-	if err != nil {
-		log.Printf("Error fetching user profile: %v", err)
+
+	// グループIDが有効か確認
+	if groupID != "" {
+		// グループ内のメンバーとしてプロフィールを取得
+		profile, err := bot.GetGroupMemberProfile(groupID, userID).Do()
+		if err != nil {
+			log.Printf("Error fetching group member profile: %v", err)
+		} else {
+			displayName = profile.DisplayName
+		}
 	} else {
-		displayName = profile.DisplayName
+		// 個人プロフィールを取得
+		profile, err := bot.GetProfile(userID).Do()
+		if err != nil {
+			log.Printf("Error fetching user profile: %v", err)
+		} else {
+			displayName = profile.DisplayName
+		}
 	}
 
 	body := fmt.Sprintf("A new group has added the LINE bot by %s. Members: %d", displayName, res.Count)
