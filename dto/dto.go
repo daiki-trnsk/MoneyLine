@@ -6,13 +6,14 @@ import (
 
 // DTO
 type Incoming struct {
-	EventType  string
-	SourceType string
-	GroupID    string
-	SenderID   string
-	Text       string
-	Mentionees []*linebot.Mentionee
-	ReplyToken string
+	EventType    string
+	SourceType   string
+	GroupID      string
+	SenderID     string
+	Text         string
+	Mentionees   []*linebot.Mentionee
+	ReplyToken   string
+	PostbackData string
 }
 
 func ToIncoming(ev *linebot.Event) Incoming {
@@ -32,6 +33,10 @@ func ToIncoming(ev *linebot.Event) Incoming {
 		} else {
 			in.Mentionees = []*linebot.Mentionee{}
 		}
+	}
+	// postback の data を保持
+	if ev.Postback != nil {
+		in.PostbackData = ev.Postback.Data
 	}
 	return in
 }

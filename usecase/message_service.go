@@ -15,13 +15,16 @@ import (
 // HandleEvent リクエストを解析し各処理呼び出し、返信メッセージ返す
 func HandleEvent(ctx context.Context, bot *linebot.Client, in dto.Incoming) linebot.SendingMessage {
 	switch in.EventType {
-		// グループ参加
+	// グループ参加
 	case string(linebot.EventTypeJoin):
 		return HandleJoinEvent(ctx, bot, in.GroupID, in.SenderID)
 		// グループ退会
 	case string(linebot.EventTypeLeave):
 		HandleLeaveEvent(ctx, in.GroupID)
 		return nil
+	case string(linebot.EventTypePostback):
+		// postback は確定処理を行う
+		return ConfirmPendingTransaction(bot, in)
 	case string(linebot.EventTypeMessage):
 		// グループ以外は処理しない
 		if in.SourceType == "" || in.GroupID == "" {

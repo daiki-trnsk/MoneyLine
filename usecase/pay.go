@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/line/line-bot-sdk-go/v7/linebot"
 	"gorm.io/gorm"
 
@@ -44,47 +45,127 @@ func Pay(bot *linebot.Client, in dto.Incoming) linebot.SendingMessage {
 		}
 	}
 
-	// トランザクション処理
-	if err := infra.DB.Transaction(func(tx *gorm.DB) error {
-		transaction := models.Transaction{
-			CreditorID: creditorID,
-			GroupID:    in.GroupID,
-			Amount:     amount,
-			Note:       note,
+	// 一意な request id を生成して保留トランザクションを作成（後で postback で確定）
+	requestID := uuid.New().String()
+	transaction := models.Transaction{
+		CreditorID: creditorID,
+		GroupID:    in.GroupID,
+		Amount:     amount,
+		Note:       note,
+		RequestID:  requestID,
+		DebtorIDs:  strings.Join(debtorIDs, ","),
+		// ConfirmedBy は未設定（確定時に埋める）
+	}
+
+	if err := infra.DB.Create(&transaction).Error; err != nil {
+		return utils.LogAndReplyError(err, in, "Transaction create failed")
+	}
+
+	// Quick Reply (postback) で確認を促す
+	qr := linebot.NewTextMessage("あなたを含めて割り勘しますか？").WithQuickReplies(
+		linebot.NewQuickReplyItems(
+			linebot.NewQuickReplyButton(
+				"",
+				linebot.NewPostbackAction("はい", fmt.Sprintf("act=incl&v=1&tx=%s", requestID), "", "", "", ""),
+			),
+			linebot.NewQuickReplyButton(
+				"",
+				linebot.NewPostbackAction("いいえ", fmt.Sprintf("act=incl&v=0&tx=%s", requestID), "", "", "", ""),
+			),
+		),
+	)
+	return qr
+}
+
+// ConfirmPendingTransaction は postback を受けて確定処理を実行する
+func ConfirmPendingTransaction(bot *linebot.Client, in dto.Incoming) linebot.SendingMessage {
+	// postback.data 例: act=incl&v=1&tx=<requestId>
+	if in.PostbackData == "" {
+		return nil
+	}
+	// 最小限のパース
+	parts := strings.Split(in.PostbackData, "&")
+	m := map[string]string{}
+	for _, p := range parts {
+		kv := strings.SplitN(p, "=", 2)
+		if len(kv) == 2 {
+			m[kv[0]] = kv[1]
 		}
-		if err := tx.Create(&transaction).Error; err != nil {
-			return fmt.Errorf("failed to create transaction: %w", err)
+	}
+	if m["act"] != "incl" || m["tx"] == "" {
+		return nil
+	}
+	includeSelf := m["v"] == "1"
+	requestID := m["tx"]
+
+	// 対象トランザクションを取得
+	var t models.Transaction
+	if err := infra.DB.Where("request_id = ?", requestID).First(&t).Error; err != nil {
+		// 対象なし（既に消えた等）は黙殺
+		return nil
+	}
+
+	didConfirm := false
+	err := infra.DB.Transaction(func(tx *gorm.DB) error {
+		// ConfirmedBy を書き込む（他と競合したら RowsAffected==0 => 先に確定済み）
+		res := tx.Model(&models.Transaction{}).
+			Where("request_id = ? AND (confirmed_by = '' OR confirmed_by IS NULL)", requestID).
+			Update("confirmed_by", in.SenderID)
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			// 既に誰かが確定済み -> 冪等性を保って何もしない
+			return nil
+		}
+		// 確定フラグが立った
+		didConfirm = true
+
+		// 確定処理: DebtorIDs を展開して TransactionDebtor を作成
+		debtorIDs := []string{}
+		if strings.TrimSpace(t.DebtorIDs) != "" {
+			for _, id := range strings.Split(t.DebtorIDs, ",") {
+				id = strings.TrimSpace(id)
+				if id != "" {
+					debtorIDs = append(debtorIDs, id)
+				}
+			}
+		}
+		// includeSelf の場合、送信者（creditor）を債務者リストに追加（重複チェック）
+		if includeSelf {
+			found := false
+			for _, d := range debtorIDs {
+				if d == t.CreditorID {
+					found = true
+					break
+				}
+			}
+			if !found {
+				debtorIDs = append(debtorIDs, t.CreditorID)
+			}
 		}
 
-		for _, debtorID := range debtorIDs {
-			txDebtor := models.TransactionDebtor{
-				TransactionID: transaction.ID,
-				DebtorID:      debtorID,
+		// TransactionDebtor を作成
+		for _, did := range debtorIDs {
+			td := models.TransactionDebtor{
+				TransactionID: t.ID,
+				DebtorID:      did,
 			}
-			if err := tx.Create(&txDebtor).Error; err != nil {
-				return fmt.Errorf("failed to create transaction debtor: %w", err)
+			if err := tx.Create(&td).Error; err != nil {
+				return err
 			}
 		}
 		return nil
-	}); err != nil {
-		return utils.LogAndReplyError(err, in, "Transaction failed")
+	})
+	if err != nil {
+		return utils.LogAndReplyError(err, in, "Failed to confirm transaction")
 	}
 
-	msgs := "記録しました！\n\n"
-
-	profileCache := make(map[string]string)
-
-	creditorName := utils.GetCachedProfileName(bot, in.GroupID, creditorID, profileCache)
-	msgs += creditorName + "\n↓\n"
-
-	// 債務者のプロフィールをキャッシュ経由で取得
-	for _, debtorID := range debtorIDs {
-		debtorName := utils.GetCachedProfileName(bot, in.GroupID, debtorID, profileCache)
-		msgs += debtorName + "\n"
+	// 確定が成功した場合のみグループへ「記録しました」を返す（再送時は nil）
+	if didConfirm {
+		return linebot.NewTextMessage("記録しました")
 	}
-	msgs += "\n" + note + "：" + utils.FormatAmount(amount) + "円"
-
-	return linebot.NewTextMessage(msgs)
+	return nil
 }
 
 // メッセージのバリデーション
