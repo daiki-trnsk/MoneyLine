@@ -15,7 +15,8 @@ import (
 // 履歴（グループごとの取引履歴）
 func History(bot *linebot.Client, in dto.Incoming) linebot.SendingMessage {
 	var txs []models.Transaction
-	if err := infra.DB.Where("group_id = ?", in.GroupID).Order("created_at asc").Find(&txs).Error; err != nil {
+	// 履歴表示は確定済みトランザクションのみを表示する（未確定は除外）
+	if err := infra.DB.Where("group_id = ? AND confirmed_by IS NOT NULL AND confirmed_by <> ''", in.GroupID).Order("created_at asc").Find(&txs).Error; err != nil {
 		return utils.LogAndReplyError(err, in, "Failed to order transaction")
 	}
 
