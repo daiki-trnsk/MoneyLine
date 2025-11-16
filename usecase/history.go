@@ -12,7 +12,7 @@ import (
 	"github.com/daiki-trnsk/MoneyLine/utils"
 )
 
-// 履歴（グループごとの取引履歴）
+// 履歴（グループごとの取引履歴）※未使用
 func History(bot *linebot.Client, in dto.Incoming) linebot.SendingMessage {
 	var txs []models.Transaction
 	if err := infra.DB.Where("group_id = ?", in.GroupID).Order("created_at asc").Find(&txs).Error; err != nil {

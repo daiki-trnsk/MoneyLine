@@ -42,8 +42,8 @@ func HandleEvent(ctx context.Context, bot *linebot.Client, in dto.Incoming) line
 			return Pay(bot, in)
 		case utils.CmdSummary:
 			return SettleGreedy(bot, in)
-		case utils.CmdHistory:
-			return History(bot, in)
+		// case utils.CmdHistory:
+		// 	return History(bot, in)
 		case utils.CmdOneClear:
 			return OneClear(bot, in)
 		case utils.CmdAllClear:
