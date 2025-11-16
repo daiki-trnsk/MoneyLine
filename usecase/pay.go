@@ -17,7 +17,7 @@ import (
 // 貸し借りを記録
 func Pay(bot *linebot.Client, in dto.Incoming) linebot.SendingMessage {
 	// メッセージのバリデーション
-	amount, note, errValue := validateMessageFormat(in.Text)
+	amount, note, includeSelf, errValue := validateMessageFormat(in.Text)
 	if errValue != nil {
 		return linebot.NewTextMessage(errValue.Error())
 	}
@@ -41,6 +41,14 @@ func Pay(bot *linebot.Client, in dto.Incoming) linebot.SendingMessage {
 		if !seen[userID] {
 			debtorIDs = append(debtorIDs, userID)
 			seen[userID] = true
+		}
+	}
+
+	// デフォルトで送信者（債権者）を含める（メッセージ末尾に「自分抜き」があれば除外）
+	if includeSelf {
+		if !seen[creditorID] {
+			debtorIDs = append(debtorIDs, creditorID)
+			seen[creditorID] = true
 		}
 	}
 
@@ -88,32 +96,50 @@ func Pay(bot *linebot.Client, in dto.Incoming) linebot.SendingMessage {
 }
 
 // メッセージのバリデーション
-func validateMessageFormat(text string) (int64, string, error) {
+func validateMessageFormat(text string) (int64, string, bool, error) {
 	parts := strings.Fields(text)
+
+	// デフォルトは送信者を含める
+	includeSelf := true
 
 	// 文頭に @マネリン が含まれているかチェック
 	if len(parts) == 0 || !strings.HasPrefix(parts[0], "@マネリン") {
-		return 0, "", fmt.Errorf("メッセージ形式が正しくありません。\n\n形式: @マネリン @借りた人(複数可) 金額 メモ \n\n使い方を確認するには私のメンションのみ送信してください。")
+		return 0, "", includeSelf, fmt.Errorf("メッセージ形式が正しくありません。\n\n形式: @マネリン @借りた人(複数可) 金額 メモ \n\n使い方を確認するには私のメンションのみ送信してください。")
 	}
 
-	// 必須要素の数をチェック
-	if len(parts) < 4 {
-		return 0, "", fmt.Errorf("メッセージ形式が正しくありません。\n\n形式: @マネリン @借りた人(複数可) 金額 メモ \n\n使い方を確認するには私のメンションのみ送信してください。")
+	// 自分抜きトークン検出
+	if parts[len(parts)-1] == "自分抜き" {
+		includeSelf = false
+		if len(parts) < 5 {
+			return 0, "", includeSelf, fmt.Errorf("メッセージ形式が正しくありません。\n\n形式: @マネリン @借りた人(複数可) 金額 メモ 自分抜き \n\n使い方を確認するには私のメンションのみ送信してください。")
+		}
+	} else {
+		if len(parts) < 4 {
+			return 0, "", includeSelf, fmt.Errorf("メッセージ形式が正しくありません。\n\n形式: @マネリン @借りた人(複数可) 金額 メモ \n\n使い方を確認するには私のメンションのみ送信してください。")
+		}
 	}
 
 	// 金額をパース
-	amount, err := utils.ParseAmount(parts[len(parts)-2])
+	amountIdx := len(parts) - 2
+	if !includeSelf {
+		amountIdx = len(parts) - 3
+	}
+	amount, err := utils.ParseAmount(parts[amountIdx])
 	if err != nil {
-		return 0, "", fmt.Errorf("メッセージ形式が正しくありません。\n\n形式: @マネリン @借りた人(複数可) 金額 メモ \n\n使い方を確認するには私のメンションのみ送信してください。")
+		return 0, "", includeSelf, fmt.Errorf("メッセージ形式が正しくありません。\n\n形式: @マネリン @借りた人(複数可) 金額 メモ \n\n使い方を確認するには私のメンションのみ送信してください。")
 	}
 
 	// 金額が0またはマイナスの場合のチェック
 	if amount <= 0 {
-		return 0, "", fmt.Errorf("金額は0より大きい値を入力してください。")
+		return 0, "", includeSelf, fmt.Errorf("金額は0より大きい値を入力してください。")
 	}
 
-	// メモを取得
-	note := strings.Join(parts[len(parts)-1:], " ")
+	// メモを取得（複数語も取れるようにする）
+	noteIdx := len(parts) - 1
+	if !includeSelf {
+		noteIdx = len(parts) - 2
+	}
+	note := strings.Join(parts[noteIdx:], " ")
 
-	return amount, note, nil
+	return amount, note, includeSelf, nil
 }
