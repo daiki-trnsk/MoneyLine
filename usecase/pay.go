@@ -78,20 +78,7 @@ func Pay(bot *linebot.Client, in dto.Incoming) linebot.SendingMessage {
 		return utils.LogAndReplyError(err, in, "Transaction failed")
 	}
 
-	msgs := "記録しました！\n\n"
-
-	profileCache := make(map[string]string)
-
-	creditorName := utils.GetCachedProfileName(bot, in.GroupID, creditorID, profileCache)
-	msgs += creditorName + "\n↓\n"
-
-	// 債務者のプロフィールをキャッシュ経由で取得
-	for _, debtorID := range debtorIDs {
-		debtorName := utils.GetCachedProfileName(bot, in.GroupID, debtorID, profileCache)
-		msgs += debtorName + "\n"
-	}
-	msgs += "\n" + note + "：" + utils.FormatAmount(amount) + "円"
-
+	msgs := "記録しました！"
 	return linebot.NewTextMessage(msgs)
 }
 
@@ -134,12 +121,16 @@ func validateMessageFormat(text string) (int64, string, bool, error) {
 		return 0, "", includeSelf, fmt.Errorf("金額は0より大きい値を入力してください。")
 	}
 
-	// メモを取得（複数語も取れるようにする）
-	noteIdx := len(parts) - 1
+	// メモを取得（amountの次のトークンから末尾まで。ただし '自分抜き' は除外）
+	noteStart := amountIdx + 1
+	noteEnd := len(parts)
 	if !includeSelf {
-		noteIdx = len(parts) - 2
+		noteEnd = len(parts) - 1
 	}
-	note := strings.Join(parts[noteIdx:], " ")
+	if noteStart >= noteEnd {
+		return 0, "", includeSelf, fmt.Errorf("メモが指定されていません。")
+	}
+	note := strings.Join(parts[noteStart:noteEnd], " ")
 
 	return amount, note, includeSelf, nil
 }
