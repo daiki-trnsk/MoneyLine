@@ -56,7 +56,7 @@ func History(bot *linebot.Client, in dto.Incoming) linebot.SendingMessage {
 		msg += fmt.Sprintf("📌【%s】\n", date)
 		msg += fmt.Sprintf("%s\n↓\n", creditorName)
 		msg += strings.Join(debtorNames, "\n") + "\n"
-		msg += fmt.Sprintf("%s：%s円\n\n", tx.Note, utils.FormatAmount(tx.Amount))
+		msg += fmt.Sprintf("%s円\n\n", utils.FormatAmount(tx.Amount))
 	}
 
 	if len(txs) == 0 {

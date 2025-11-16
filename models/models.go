@@ -13,9 +13,9 @@ type Transaction struct {
 	CreditorID string    `gorm:"index"`
 	GroupID    string    `gorm:"index"`
 	Amount     int64
-	Note       string
-	CreatedAt  time.Time `gorm:"autoCreateTime"`
-	UpdatedAt  time.Time `gorm:"autoUpdateTime"`
+	// Note removed: memo is no longer stored per new requirement
+	CreatedAt time.Time `gorm:"autoCreateTime"`
+	UpdatedAt time.Time `gorm:"autoUpdateTime"`
 
 	Debtors []TransactionDebtor `gorm:"constraint:OnDelete:CASCADE;"`
 }

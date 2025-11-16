@@ -16,8 +16,8 @@ import (
 
 // 貸し借りを記録
 func Pay(bot *linebot.Client, in dto.Incoming) linebot.SendingMessage {
-	// メッセージのバリデーション
-	amount, note, includeSelf, errValue := validateMessageFormat(in.Text)
+	// メッセージのバリデーション（メモは不要。余分な末尾トークンは無視して金額を抽出）
+	amount, includeSelf, errValue := validateMessageFormat(in.Text)
 	if errValue != nil {
 		return linebot.NewTextMessage(errValue.Error())
 	}
@@ -58,7 +58,6 @@ func Pay(bot *linebot.Client, in dto.Incoming) linebot.SendingMessage {
 			CreditorID: creditorID,
 			GroupID:    in.GroupID,
 			Amount:     amount,
-			Note:       note,
 		}
 		if err := tx.Create(&transaction).Error; err != nil {
 			return fmt.Errorf("failed to create transaction: %w", err)
@@ -83,7 +82,9 @@ func Pay(bot *linebot.Client, in dto.Incoming) linebot.SendingMessage {
 }
 
 // メッセージのバリデーション
-func validateMessageFormat(text string) (int64, string, bool, error) {
+// メモは不要。末尾に余分なトークンがあってもエラーにせず、末尾から数値トークンを探して金額を抽出する。
+// 戻り値: amount, includeSelf, error
+func validateMessageFormat(text string) (int64, bool, error) {
 	parts := strings.Fields(text)
 
 	// デフォルトは送信者を含める
@@ -91,46 +92,41 @@ func validateMessageFormat(text string) (int64, string, bool, error) {
 
 	// 文頭に @マネリン が含まれているかチェック
 	if len(parts) == 0 || !strings.HasPrefix(parts[0], "@マネリン") {
-		return 0, "", includeSelf, fmt.Errorf("メッセージ形式が正しくありません。\n\n形式: @マネリン @借りた人(複数可) 金額 メモ \n\n使い方を確認するには私のメンションのみ送信してください。")
+		return 0, includeSelf, fmt.Errorf("メッセージ形式が正しくありません。\n\n形式: @マネリン @借りた人(複数可) 金額 \n\n使い方を確認するには私のメンションのみ送信してください。")
 	}
 
-	// 自分抜きトークン検出
+	// 自分抜きトークン検出（末尾）
+	endIdx := len(parts) - 1
 	if parts[len(parts)-1] == "自分抜き" {
 		includeSelf = false
-		if len(parts) < 5 {
-			return 0, "", includeSelf, fmt.Errorf("メッセージ形式が正しくありません。\n\n形式: @マネリン @借りた人(複数可) 金額 メモ 自分抜き \n\n使い方を確認するには私のメンションのみ送信してください。")
+		if len(parts) < 3 {
+			return 0, includeSelf, fmt.Errorf("メッセージ形式が正しくありません。\n\n形式: @マネリン @借りた人(複数可) 金額 自分抜き")
 		}
-	} else {
-		if len(parts) < 4 {
-			return 0, "", includeSelf, fmt.Errorf("メッセージ形式が正しくありません。\n\n形式: @マネリン @借りた人(複数可) 金額 メモ \n\n使い方を確認するには私のメンションのみ送信してください。")
-		}
+		endIdx = len(parts) - 2
 	}
 
-	// 金額をパース
-	amountIdx := len(parts) - 2
-	if !includeSelf {
-		amountIdx = len(parts) - 3
+	// 末尾側から最初にパース可能な金額トークンを探す（メモは無視）
+	var amount int64
+	found := false
+	for i := endIdx; i >= 1; i-- {
+		a, err := utils.ParseAmount(parts[i])
+		if err == nil {
+			amount = a
+			// 金額トークンは必ずメンションより後にあるべき（parts[0]=@マネリン, parts[1]=@...）
+			if i < 2 {
+				return 0, includeSelf, fmt.Errorf("金額が指定されていません。形式: @マネリン @借りた人 金額")
+			}
+			found = true
+			break
+		}
 	}
-	amount, err := utils.ParseAmount(parts[amountIdx])
-	if err != nil {
-		return 0, "", includeSelf, fmt.Errorf("メッセージ形式が正しくありません。\n\n形式: @マネリン @借りた人(複数可) 金額 メモ \n\n使い方を確認するには私のメンションのみ送信してください。")
+	if !found {
+		return 0, includeSelf, fmt.Errorf("金額が指定されていません。形式: @マネリン @借りた人 金額")
 	}
 
-	// 金額が0またはマイナスの場合のチェック
 	if amount <= 0 {
-		return 0, "", includeSelf, fmt.Errorf("金額は0より大きい値を入力してください。")
+		return 0, includeSelf, fmt.Errorf("金額は0より大きい値を入力してください。")
 	}
 
-	// メモを取得（amountの次のトークンから末尾まで。ただし '自分抜き' は除外）
-	noteStart := amountIdx + 1
-	noteEnd := len(parts)
-	if !includeSelf {
-		noteEnd = len(parts) - 1
-	}
-	if noteStart >= noteEnd {
-		return 0, "", includeSelf, fmt.Errorf("メモが指定されていません。")
-	}
-	note := strings.Join(parts[noteStart:noteEnd], " ")
-
-	return amount, note, includeSelf, nil
+	return amount, includeSelf, nil
 }
