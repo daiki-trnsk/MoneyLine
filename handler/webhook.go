@@ -22,8 +22,7 @@ func WebhookHandler(bot *linebot.Client) echo.HandlerFunc {
 		}
 
 		for _, event := range events {
-			// メッセージ、参加・退会、postback を共通で処理
-			if event.Type == linebot.EventTypeMessage || event.Type == linebot.EventTypeJoin || event.Type == linebot.EventTypeLeave || event.Type == linebot.EventTypePostback {
+			if event.Type == linebot.EventTypeMessage || event.Type == linebot.EventTypeJoin || event.Type == linebot.EventTypeLeave {
 				in := dto.ToIncoming(event)
 				reply := usecase.HandleEvent(c.Request().Context(), bot, in)
 				if reply != nil {
